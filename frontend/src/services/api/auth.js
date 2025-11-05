@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // ✅ PARA CREATE REACT APP
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 console.log('🔍 API URL configurada:', API_URL);
 

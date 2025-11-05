@@ -48,13 +48,23 @@ app.use('*', (req, res) => {
   });
 });
 
-// Sincronizar BD y iniciar servidor
+// ✅ Sincronización MEJORADA para crear tablas
 const startServer = async () => {
   try {
-    console.log('🔄 Sincronizando base de datos...');
+    console.log('🔍 Verificando conexión a base de datos...');
     
-    await sequelize.sync({ force: false, alter: true });
-    console.log('✅ Base de datos sincronizada correctamente');
+    await sequelize.authenticate();
+    console.log('✅ Conexión a BD establecida correctamente');
+    
+    console.log('🔄 Creando tablas...');
+    
+    // Sincronizar SIN alterar y SIN forzar (solo crear si no existen)
+    await sequelize.sync({ 
+      force: false, 
+      alter: false  // ❌ IMPORTANTE: No alterar estructura existente
+    });
+    
+    console.log('✅ Tablas verificadas/creadas correctamente');
     
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
@@ -65,6 +75,14 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('❌ Error al iniciar servidor:', error);
+    
+    // Si el error es por demasiados índices, intentar solución alternativa
+    if (error.parent && error.parent.code === 'ER_TOO_MANY_KEYS') {
+      console.log('\n💡 SOLUCIÓN ALTERNATIVA:');
+      console.log('Ejecuta el script SQL manualmente en Railway para crear las tablas');
+      console.log('Luego cambia a sequelize.sync({ force: false, alter: false })');
+    }
+    
     process.exit(1);
   }
 };
