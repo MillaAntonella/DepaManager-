@@ -1,3 +1,4 @@
+// backend/src/models/index.js
 const sequelize = require('../config/sequelize');
 const { DataTypes } = require('sequelize');
 
@@ -9,12 +10,14 @@ const Payment = require('./payment')(sequelize, DataTypes);
 const Incident = require('./incident')(sequelize, DataTypes);
 const Contract = require('./contract')(sequelize, DataTypes);
 const Notification = require('./notification')(sequelize, DataTypes);
+const Provider = require('./provider')(sequelize, DataTypes);
 
-// Definir asociaciones
-// Usuario -> Departamento (como inquilino)
-User.hasOne(Department, {
+// 🔥 CORRECCIÓN: Definir asociaciones CORRECTAS
+
+// Usuario -> Departamento (como inquilino) - RELACIÓN UNO A MUCHOS
+User.hasMany(Department, {
   foreignKey: 'idInquilino',
-  as: 'departamento'
+  as: 'departamentosInquilino'
 });
 
 Department.belongsTo(User, {
@@ -31,6 +34,17 @@ Department.belongsTo(Building, {
 Building.hasMany(Department, {
   foreignKey: 'idEdificio',
   as: 'departamentos'
+});
+
+// Edificio -> Administrador
+Building.belongsTo(User, {
+  foreignKey: 'idAdministrador',
+  as: 'administrador'
+});
+
+User.hasMany(Building, {
+  foreignKey: 'idAdministrador',
+  as: 'edificios'
 });
 
 // Usuario -> Pagos
@@ -88,6 +102,28 @@ Contract.belongsTo(Department, {
   as: 'departamento'
 });
 
+// Proveedor -> Administrador
+Provider.belongsTo(User, {
+  foreignKey: 'idAdministrador',
+  as: 'administrador'
+});
+
+User.hasMany(Provider, {
+  foreignKey: 'idAdministrador',
+  as: 'proveedores'
+});
+
+// 🔥 CORRECCIÓN: Agregar relación entre Incidencia y Proveedor
+Incident.belongsTo(Provider, {
+  foreignKey: 'idProveedor',
+  as: 'proveedor'
+});
+
+Provider.hasMany(Incident, {
+  foreignKey: 'idProveedor',
+  as: 'incidencias'
+});
+
 const db = {
   User,
   Department,
@@ -96,10 +132,11 @@ const db = {
   Incident,
   Contract,
   Notification,
+  Provider,
   sequelize,
   Sequelize: require('sequelize')
 };
 
-console.log('🔍 Modelos y asociaciones cargados para Sequelize Auto-Sync');
+console.log('✅ Modelos y asociaciones cargados correctamente para Sequelize');
 
 module.exports = db;

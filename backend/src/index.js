@@ -1,12 +1,14 @@
+// backend/src/index.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { sequelize } = require('./models');
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ CORS ESPECÍFICO PARA CREATE REACT APP
+// CORS para React
 app.use(cors({
   origin: 'http://localhost:3001',
   credentials: true,
@@ -18,10 +20,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ DEBUG: Verificar rutas antes de cargarlas
 console.log('🔍 Cargando rutas...');
 
-// Rutas
+// Rutas (SIN /api - como las tienes actualmente)
 app.use('/auth', require('./routes/auth.routes'));
 app.use('/admin', require('./routes/admin.routes'));
 app.use('/tenant', require('./routes/tenant.routes'));
@@ -77,7 +78,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ✅ Sincronización MEJORADA para crear tablas
+// Sincronización de base de datos
 const startServer = async () => {
   try {
     console.log('🔍 Verificando conexión a base de datos...');
@@ -86,8 +87,6 @@ const startServer = async () => {
     console.log('✅ Conexión a BD establecida correctamente');
     
     console.log('🔄 Creando tablas...');
-    
-    // Sincronizar SIN alterar y SIN forzar (solo crear si no existen)
     await sequelize.sync({ 
       force: false, 
       alter: false
@@ -98,8 +97,6 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
       console.log(`📍 URL: http://localhost:${PORT}`);
-      console.log(`📊 BD: ${process.env.DB_HOST}:${process.env.DB_PORT}`);
-      console.log(`🔑 JWT: ${process.env.JWT_SECRET ? '✅ Configurado' : '❌ FALTANTE'}`);
       console.log(`🌐 CORS: Habilitado para http://localhost:3001`);
       console.log(`📋 Endpoints disponibles:`);
       console.log(`   - http://localhost:${PORT}/`);

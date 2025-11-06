@@ -1,64 +1,98 @@
+// backend/src/middlewares/auth.middleware.js
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-const authMiddleware = {
-  // Verificar token
-  verifyToken: async (req, res, next) => {
-    try {
-      const token = req.header('Authorization')?.replace('Bearer ', '');
-      
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          mensaje: 'Acceso denegado. Token no proporcionado.'
-        });
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto_depamanager');
-      
-      // Verificar que el usuario exista
-      const usuario = await User.findByPk(decoded.id);
-      if (!usuario) {
-        return res.status(401).json({
-          success: false,
-          mensaje: 'Token inválido - usuario no existe'
-        });
-      }
-
-      // Agregar usuario al request
-      req.usuario = usuario;
-      next();
-
-    } catch (error) {
-      console.error('Error en auth middleware:', error);
-      res.status(401).json({
-        success: false,
-        mensaje: 'Token inválido'
+const verifyToken = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Acceso denegado. No se proporcionó token.' 
       });
     }
-  },
 
-  // Verificar rol de administrador
-  verifyAdmin: (req, res, next) => {
-    if (req.usuario.rol !== 'Administrador') {
-      return res.status(403).json({
-        success: false,
-        mensaje: 'Acceso denegado. Se requiere rol de administrador.'
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    console.log('🔍 Token decodificado:', decoded);
+    
+    // ✅ Buscar usuario con todos los campos necesarios
+    const user = await User.findByPk(decoded.id, {
+      attributes: { exclude: ['contrasenia'] }
+    });
+    
+    if (!user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token inválido. Usuario no encontrado.' 
       });
     }
+
+    console.log('✅ Usuario autenticado:', user.correo);
+    console.log('🔍 Campos del usuario:', {
+      id: user.idUsuario,
+      idUsuario: user.idUsuario,
+      correo: user.correo,
+      rol: user.rol
+    });
+
+    // ✅ Asegurar que req.user tenga los campos correctos
+    req.user = {
+      id: user.idUsuario,
+      idUsuario: user.idUsuario,
+      correo: user.correo,
+      rol: user.rol,
+      nombreCompleto: user.nombreCompleto
+    };
+
     next();
-  },
-
-  // Verificar rol de inquilino
-  verifyTenant: (req, res, next) => {
-    if (req.usuario.rol !== 'Inquilino') {
-      return res.status(403).json({
-        success: false,
-        mensaje: 'Acceso denegado. Se requiere rol de inquilino.'
+    
+  } catch (error) {
+    console.error('❌ Error en verifyToken:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token inválido.' 
       });
     }
-    next();
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token expirado.' 
+      });
+    }
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Error del servidor en autenticación.' 
+    });
   }
 };
 
-module.exports = authMiddleware;
+const verifyAdmin = (req, res, next) => {
+  if (req.user.rol !== 'Administrador') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Acceso denegado. Se requieren privilegios de administrador.' 
+    });
+  }
+  next();
+};
+
+const verifyTenant = (req, res, next) => {
+  if (req.user.rol !== 'Inquilino') {
+    return res.status(403).json({ 
+      success: false, 
+      message: 'Acceso denegado. Se requieren privilegios de inquilino.' 
+    });
+  }
+  next();
+};
+
+module.exports = {
+  verifyToken,
+  verifyAdmin,
+  verifyTenant
+};

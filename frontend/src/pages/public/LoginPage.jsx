@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// frontend/src/pages/public/LoginPage.jsx
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -9,70 +10,57 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    console.log('🔍 LoginPage - Estado:', { isAuthenticated, user: user?.correo });
+    
+    if (isAuthenticated && user) {
+      console.log('✅ Usuario autenticado, redirigiendo a /admin');
+      navigate('/admin', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    console.log('=== 🎯 LOGINPAGE DEBUG INICIADO ===');
-    console.log('📍 Frontend URL:', window.location.href);
-    console.log('📤 Credenciales a enviar:', { 
-      correo: email, 
-      contrasenia: password ? '***' : 'VACÍA' 
-    });
-
     try {
-      console.log('🔐 Ejecutando login() del AuthContext...');
-      
+      console.log('📤 Enviando credenciales...');
       const result = await login({ 
         correo: email, 
         contrasenia: password 
       });
 
-      console.log('✅ Resultado recibido del AuthContext:', result);
-      console.log('🔍 Estructura de result:', {
-        success: result?.success,
-        hasData: !!result?.data,
-        hasUser: !!result?.data?.user,
-        userRol: result?.data?.user?.rol
-      });
+      console.log('📋 Resultado del login:', result);
 
-      // ✅ VERIFICACIÓN ROBUSTA DE LA ESTRUCTURA DE DATOS
-      if (result && result.success && result.data && result.data.user) {
-        console.log('🎉 Login EXITOSO en LoginPage');
-        console.log('👤 Datos del usuario:', result.data.user);
-        console.log('🎯 Rol del usuario:', result.data.user.rol);
-        
-        // ✅ REDIRECCIÓN SEGURA
-        if (result.data.user.rol === 'Administrador') {
-          console.log('🚀 Redirigiendo a /admin/dashboard');
-          navigate('/admin/dashboard', { replace: true });
-        } else if (result.data.user.rol === 'Inquilino') {
-          console.log('🚀 Redirigiendo a /tenant/dashboard');
-          navigate('/tenant/dashboard', { replace: true });
-        } else {
-          console.error('❌ Rol no reconocido:', result.data.user.rol);
-          setError('Rol de usuario no reconocido');
-        }
+      if (result.success) {
+        console.log('✅ Login exitoso, el useEffect se encargará de la redirección');
+        // La redirección se maneja en el useEffect automáticamente
       } else {
-        console.log('❌ Estructura de respuesta inválida:', result);
-        setError(result?.error || 'Error en la respuesta del servidor');
+        setError(result.error || 'Error en el login');
       }
     } catch (err) {
-      console.error('💥 Error CAPTURADO en handleSubmit:', err);
-      console.error('💥 Detalles del error:', {
-        message: err.message,
-        stack: err.stack,
-        response: err.response?.data
-      });
-      setError('Error al conectar con el servidor');
+      console.error('💥 Error inesperado:', err);
+      setError('Error inesperado. Por favor intenta nuevamente.');
     } finally {
-      console.log('🏁 Finalizando handleSubmit');
       setLoading(false);
     }
   };
+
+  // Si ya está autenticado, mostrar loading
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">Redirigiendo al panel de administración...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -125,8 +113,8 @@ export default function LoginPage() {
 
             {/* Mensaje de error */}
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
+                {error}
               </div>
             )}
 
@@ -134,9 +122,16 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-full hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-full hover:from-emerald-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Ingresando...' : 'Ingresar'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                  Ingresando...
+                </>
+              ) : (
+                'Ingresar'
+              )}
             </button>
           </form>
 
@@ -154,9 +149,8 @@ export default function LoginPage() {
       </div>
 
       {/* COLUMNA DERECHA - ILUSTRACIÓN */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 items-center justify-center p-12 relative overflow-hidden">
-        {/* Texto adicional */}
-        <div className="text-center text-white z-10">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 items-center justify-center p-12">
+        <div className="text-center text-white">
           <p className="text-4xl font-bold mb-4">DepaManager</p>
           <p className="text-emerald-100 text-lg">Gestión Inteligente de Propiedades</p>
         </div>

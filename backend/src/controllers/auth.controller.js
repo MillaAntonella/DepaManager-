@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, Building } = require('../models'); // ✅ Ya está importado
 
 // LOGIN DE USUARIO
 const login = async (req, res) => {
@@ -154,7 +154,6 @@ const registerAdmin = async (req, res) => {
     console.log('=== 🔍 INICIANDO REGISTRO EN BACKEND ===');
     console.log('📥 Body COMPLETO recibido:', req.body);
 
-    // ✅ ACEPTAR nombre_completo Y nombre
     const { 
       nombre, 
       nombre_completo,
@@ -173,18 +172,11 @@ const registerAdmin = async (req, res) => {
       dni
     });
 
-    // ✅ USAR nombre_completo SI ESTÁ PRESENTE, SINO nombre
     const nombreFinal = nombre_completo || nombre;
-
     console.log('🔍 Nombre final a usar:', nombreFinal);
 
-    // Validar campos requeridos CON EL NOMBRE FINAL
     if (!nombreFinal || !correo || !contrasenia) {
-      console.log('❌ Campos faltantes:', {
-        nombre: !!nombreFinal,
-        correo: !!correo,
-        contrasenia: !!contrasenia
-      });
+      console.log('❌ Campos faltantes');
       return res.status(400).json({
         success: false,
         message: 'Nombre, correo y contraseña son requeridos'
@@ -204,7 +196,7 @@ const registerAdmin = async (req, res) => {
 
     console.log('👤 Creando nuevo usuario administrador...');
 
-    // Crear usuario administrador - USAR nombreFinal
+    // Crear usuario administrador
     let nuevoUsuario;
     try {
       nuevoUsuario = await User.create({
@@ -219,10 +211,60 @@ const registerAdmin = async (req, res) => {
       console.log('✅ Usuario creado ID:', nuevoUsuario.idUsuario);
     } catch (createError) {
       console.error('❌ Error al crear usuario:', createError);
+      
+      // ✅ MANEJO ESPECÍFICO DE ERRORES DE VALIDACIÓN
+      if (createError.name === 'SequelizeUniqueConstraintError') {
+        // Error de campo único duplicado (correo o DNI)
+        const field = createError.errors[0]?.path;
+        let mensaje = 'Ya existe un registro con estos datos';
+        
+        if (field === 'correo') {
+          mensaje = 'El correo electrónico ya está registrado';
+        } else if (field === 'dni') {
+          mensaje = 'El DNI ya está registrado';
+        }
+        
+        console.log('⚠️ Error de unicidad en campo:', field);
+        return res.status(400).json({
+          success: false,
+          message: mensaje,
+          field: field
+        });
+      }
+      
+      // ✅ Error genérico
       return res.status(500).json({
         success: false,
         message: 'Error al crear usuario: ' + createError.message
       });
+    }
+
+    // ✅ CREAR EDIFICIO POR DEFECTO AUTOMÁTICAMENTE
+    console.log('🏗️ Creando edificio por defecto para el nuevo administrador...');
+    console.log('🔍 ID del administrador:', nuevoUsuario.idUsuario);
+    
+    let edificioPorDefecto;
+    let edificioCreado = false;
+    
+    try {
+      edificioPorDefecto = await Building.create({
+        idAdministrador: nuevoUsuario.idUsuario,
+        nombre: 'Mi Edificio Principal',
+        direccion: 'Actualiza la dirección en configuración',
+        totalDepartamentos: 0
+      });
+      
+      edificioCreado = true;
+      console.log('✅ Edificio por defecto creado exitosamente!');
+      console.log('🏢 ID Edificio:', edificioPorDefecto.idEdificio);
+      console.log('🏢 Nombre:', edificioPorDefecto.nombre);
+      console.log('🏢 Administrador ID:', edificioPorDefecto.idAdministrador);
+      
+    } catch (buildingError) {
+      console.error('❌ Error creando edificio por defecto:', buildingError);
+      console.error('❌ Detalles del error:', buildingError.message);
+      console.error('❌ Stack:', buildingError.stack);
+      // No hacemos return aquí para no interrumpir el registro, pero lo registramos
     }
 
     // Generar token
@@ -256,17 +298,29 @@ const registerAdmin = async (req, res) => {
       estado: nuevoUsuario.estado
     };
 
+    // ✅ DATOS DEL EDIFICIO CREADO (si existe)
+    const edificioData = edificioPorDefecto ? {
+      id: edificioPorDefecto.idEdificio,
+      nombre: edificioPorDefecto.nombre,
+      direccion: edificioPorDefecto.direccion,
+      totalDepartamentos: edificioPorDefecto.totalDepartamentos
+    } : null;
+
     console.log('🎉 Registro exitoso para:', nuevoUsuario.correo);
+    console.log('🏢 Edificio creado:', edificioCreado ? 'SÍ' : 'NO');
     console.log('🚀 Enviando respuesta de registro...');
 
     res.status(201).json({
       success: true,
       message: 'Administrador registrado exitosamente',
       token,
-      user: usuarioData
+      user: usuarioData,
+      buildingCreated: edificioCreado, // ✅ Booleano si se creó edificio
+      building: edificioData // ✅ DATOS COMPLETOS DEL EDIFICIO CREADO
     });
 
     console.log('✅ Respuesta de registro enviada');
+    console.log('📊 Resumen: Usuario creado + Edificio creado =', edificioCreado);
 
   } catch (error) {
     console.error('❌ Error completo en registro:', error);

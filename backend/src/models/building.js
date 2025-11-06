@@ -1,6 +1,5 @@
-const { DataTypes } = require('sequelize');
-
-module.exports = (sequelize) => {
+// backend/src/models/building.js (debería verse similar a esto)
+module.exports = (sequelize, DataTypes) => {
   const Building = sequelize.define('Building', {
     idEdificio: {
       type: DataTypes.INTEGER,
@@ -15,6 +14,7 @@ module.exports = (sequelize) => {
     },
     nombre: {
       type: DataTypes.STRING(100),
+      allowNull: false,
       defaultValue: 'Mi Edificio'
     },
     direccion: {
@@ -23,6 +23,7 @@ module.exports = (sequelize) => {
     },
     totalDepartamentos: {
       type: DataTypes.INTEGER,
+      allowNull: false,
       defaultValue: 0,
       field: 'total_departamentos'
     }

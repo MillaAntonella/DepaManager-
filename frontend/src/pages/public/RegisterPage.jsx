@@ -56,14 +56,26 @@ export default function RegisterPage() {
     try {
       const { confirmarContrasenia, ...userData } = formData;
       
+      console.log('🚀 Enviando datos de registro...', userData);
       const result = await registerAdmin(userData);
 
       if (result.success) {
+        console.log('✅ Registro exitoso!');
+        
+        // ✅ MOSTRAR INFO DEL EDIFICIO CREADO EN CONSOLA
+        if (result.buildingCreated && result.building) {
+          console.log('🏢 Tu edificio fue creado automáticamente:');
+          console.log('   📍 Nombre:', result.building.nombre);
+          console.log('   🆔 ID:', result.building.id);
+        }
+        
+        // Redirigir al dashboard
         navigate('/admin/dashboard');
       } else {
         setError(result.error);
       }
     } catch (err) {
+      console.error('❌ Error en handleSubmit:', err);
       setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);

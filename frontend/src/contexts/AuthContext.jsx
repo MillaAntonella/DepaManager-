@@ -1,3 +1,4 @@
+// frontend/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authAPI } from '../services/api/auth';
 
@@ -22,92 +23,146 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('depamanager_token');
-      if (token) {
+      const userData = localStorage.getItem('depamanager_user');
+      
+      if (token && userData) {
         console.log('🔍 Verificando token...');
         const response = await authAPI.verifyToken();
-        if (response.success) {
-          // ✅ CAMBIAR: response.usuario → response.user
-          setUser(response.user);
-          console.log('✅ Usuario autenticado:', response.user.correo);
+        if (response.data.success) {
+          setUser(response.data.user);
+          console.log('✅ Usuario autenticado:', response.data.user.correo);
         } else {
-          localStorage.removeItem('depamanager_token');
-          localStorage.removeItem('depamanager_user');
+          console.log('❌ Token inválido');
+          clearAuth();
         }
+      } else {
+        console.log('🔐 No hay token almacenado');
       }
     } catch (error) {
       console.error('❌ Error verificando autenticación:', error);
-      localStorage.removeItem('depamanager_token');
-      localStorage.removeItem('depamanager_user');
+      clearAuth();
     } finally {
       setLoading(false);
     }
   };
 
-  const login = async (credentials) => {
-    try {
-      console.log('🔐 Iniciando proceso de login...');
-      const response = await authAPI.login(credentials);
-      
-      console.log('✅ Respuesta completa del login:', response);
-      
-      if (response.success) {
-        // ✅ CAMBIAR: response.usuario → response.user
-        localStorage.setItem('depamanager_token', response.token);
-        localStorage.setItem('depamanager_user', JSON.stringify(response.user));
-        setUser(response.user);
-        console.log('✅ Login exitoso, usuario:', response.user.correo);
-        return { success: true, data: response };
-      } else {
-        console.log('❌ Login falló:', response.message);
-        return { success: false, error: response.message };
-      }
-    } catch (error) {
-      console.error('❌ Error completo en login:', error);
-      const errorMessage = error.response?.data?.message || 'Error de conexión con el servidor';
-      console.error('❌ Error en login:', errorMessage);
-      return { success: false, error: errorMessage };
-    }
+  const clearAuth = () => {
+    localStorage.removeItem('depamanager_token');
+    localStorage.removeItem('depamanager_user');
+    setUser(null);
   };
 
-  const registerAdmin = async (userData) => {
+  const login = async (credentials) => {
     try {
-      console.log('👤 Iniciando proceso de registro...');
-      const response = await authAPI.registerAdmin(userData);
+      console.log('🔐 Enviando login...');
+      const response = await authAPI.login(credentials);
       
-      console.log('✅ Respuesta completa del registro:', response);
+      console.log('✅ Respuesta del servidor:', response.data);
       
-      if (response.success) {
-        // ✅ CAMBIAR: response.usuario → response.user
-        localStorage.setItem('depamanager_token', response.token);
-        localStorage.setItem('depamanager_user', JSON.stringify(response.user));
-        setUser(response.user);
-        console.log('✅ Registro exitoso, usuario:', response.user.correo);
-        return { success: true, data: response };
+      if (response.data.success) {
+        localStorage.setItem('depamanager_token', response.data.token);
+        localStorage.setItem('depamanager_user', JSON.stringify(response.data.user));
+        setUser(response.data.user);
+        
+        return { 
+          success: true, 
+          user: response.data.user
+        };
       } else {
-        console.log('❌ Registro falló:', response.message);
-        return { success: false, error: response.message };
+        return { 
+          success: false, 
+          error: response.data.message 
+        };
       }
     } catch (error) {
-      console.error('❌ Error completo en registro:', error);
-      const errorMessage = error.response?.data?.message || 'Error de conexión con el servidor';
-      console.error('❌ Error en registro:', errorMessage);
-      return { success: false, error: errorMessage };
+      console.error('❌ Error en login:', error);
+      
+      if (error.response) {
+        return { 
+          success: false, 
+          error: error.response.data?.message || `Error ${error.response.status}` 
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: 'Error de conexión con el servidor' 
+      };
     }
   };
 
   const logout = () => {
     console.log('🚪 Cerrando sesión...');
-    localStorage.removeItem('depamanager_token');
-    localStorage.removeItem('depamanager_user');
-    setUser(null);
+    clearAuth();
+  };
+
+  // ✅ FUNCIÓN DE REGISTRO PARA ADMINISTRADOR (agregada para solucionar error)
+  const registerAdmin = async (userData) => {
+    try {
+      console.log('👤 Registrando nuevo administrador...', userData);
+      const response = await authAPI.registerAdmin(userData);
+      
+      console.log('✅ Respuesta del registro:', response.data);
+      
+      if (response.data.success) {
+        // Guardar token y usuario en localStorage
+        localStorage.setItem('depamanager_token', response.data.token);
+        localStorage.setItem('depamanager_user', JSON.stringify(response.data.user));
+        setUser(response.data.user);
+        
+        console.log('✅ Administrador registrado exitosamente:', response.data.user.correo);
+        
+        // ✅ LOGS DEL EDIFICIO CREADO
+        if (response.data.buildingCreated && response.data.building) {
+          console.log('🏢 Edificio creado automáticamente:');
+          console.log('   - ID:', response.data.building.id);
+          console.log('   - Nombre:', response.data.building.nombre);
+          console.log('   - Dirección:', response.data.building.direccion);
+        } else {
+          console.warn('⚠️ No se pudo crear el edificio automáticamente');
+        }
+        
+        return { 
+          success: true, 
+          user: response.data.user,
+          buildingCreated: response.data.buildingCreated,
+          building: response.data.building // ✅ Devolver info del edificio
+        };
+      } else {
+        return { 
+          success: false, 
+          error: response.data.message 
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error en registro:', error);
+      
+      // ✅ MANEJO MEJORADO DE ERRORES CON MENSAJES ESPECÍFICOS
+      if (error.response) {
+        const errorMessage = error.response.data?.message || `Error ${error.response.status}`;
+        console.error('❌ Error del servidor:', errorMessage);
+        
+        return { 
+          success: false, 
+          error: errorMessage
+        };
+      }
+      
+      // ✅ Error de conexión
+      console.error('❌ Error de conexión con el servidor');
+      return { 
+        success: false, 
+        error: 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.' 
+      };
+    }
   };
 
   const value = {
     user,
     loading,
     login,
-    registerAdmin,
     logout,
+    registerAdmin, // ✅ AGREGADA la función registerAdmin
     isAuthenticated: !!user
   };
 

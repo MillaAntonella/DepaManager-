@@ -1,116 +1,95 @@
+// frontend/src/services/api/auth.js - VERSIÓN COMPLETA Y CORREGIDA
 import axios from 'axios';
 
-// ✅ PARA CREATE REACT APP
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-
-console.log('🔍 API URL configurada:', API_URL);
+// ✅ Configuración base de axios con URL desde .env o fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+console.log('🔧 API Base URL configurada:', API_BASE_URL); // Log para debug
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 10000
+    'Content-Type': 'application/json' // ✅ Header explícito
+  }
 });
 
-// Interceptor para agregar token a las requests
+// Interceptor para agregar token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('depamanager_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('📤 Enviando request:', config.method?.toUpperCase(), config.url);
+    
+    console.log('📤 Enviando petición:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      fullURL: `${config.baseURL}${config.url}`, // ✅ Log de URL completa
+      data: config.data
+    });
+    
     return config;
   },
   (error) => {
-    console.error('❌ Error en request:', error);
+    console.error('❌ Error en interceptor de request:', error);
     return Promise.reject(error);
   }
 );
 
-// Interceptor para manejar respuestas - VERSIÓN MEJORADA
+// Interceptor para manejar respuestas
 api.interceptors.response.use(
   (response) => {
-    console.log('📥 Respuesta recibida:', response.status, response.config.url);
-    console.log('📥 Datos de la respuesta:', response.data);
+    console.log('📥 Respuesta exitosa:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data
+    });
     return response;
   },
   (error) => {
-    console.error('❌ Error completo en respuesta:', {
+    console.error('❌ Error en respuesta:', {
       status: error.response?.status,
       statusText: error.response?.statusText,
+      url: error.config?.url,
       data: error.response?.data,
-      message: error.message,
-      url: error.config?.url
+      message: error.message
     });
+    
+    // ✅ Manejo específico de errores de conexión
+    if (!error.response) {
+      console.error('🚨 ERROR DE CONEXIÓN: No hay respuesta del servidor');
+      console.error('🔍 Verifica que el backend esté corriendo en:', API_BASE_URL);
+      throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
+    }
     
     if (error.response?.status === 401) {
       localStorage.removeItem('depamanager_token');
       localStorage.removeItem('depamanager_user');
       window.location.href = '/admin/auth';
     }
+    
     return Promise.reject(error);
   }
 );
 
+// Funciones de autenticación
 export const authAPI = {
-  // Login - VERSIÓN MEJORADA CON MÁS LOGS
-  login: async (credentials) => {
-    try {
-      console.log('🔐 Intentando login...');
-      console.log('📤 Credenciales enviadas:', { 
-        correo: credentials.correo, 
-        contrasenia: credentials.contrasenia ? '***' : 'VACÍA' 
-      });
-      
-      const response = await api.post('/auth/login', credentials);
-      
-      console.log('✅ Respuesta del login recibida:', response.data);
-      console.log('✅ Token recibido:', response.data.token ? 'SÍ' : 'NO');
-      console.log('✅ User data recibido:', response.data.user);
-      
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error completo en login API:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url
-      });
-      throw error;
-    }
+  login: (credentials) => {
+    console.log('🔐 Intentando login...', { correo: credentials.correo });
+    return api.post('/auth/login', credentials);
   },
 
-  // Registro de administrador - VERSIÓN MEJORADA
-  registerAdmin: async (userData) => {
-    try {
-      console.log('👤 Intentando registro...');
-      console.log('📤 Datos enviados:', userData);
-      
-      const response = await api.post('/auth/register-admin', userData);
-      
-      console.log('✅ Registro exitoso:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error en registro API:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      throw error;
-    }
+  registerAdmin: (userData) => {
+    console.log('👤 Intentando registro admin...', { 
+      nombre: userData.nombre_completo,
+      correo: userData.correo 
+    });
+    return api.post('/auth/register-admin', userData);
   },
 
-  // Verificar token
-  verifyToken: async () => {
-    try {
-      const response = await api.get('/auth/verify');
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error verificando token:', error);
-      throw error;
-    }
+  verifyToken: () => {
+    console.log('🔍 Verificando token...');
+    return api.get('/auth/verify');
   }
 };
 
