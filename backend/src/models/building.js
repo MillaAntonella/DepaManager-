@@ -1,5 +1,7 @@
-// backend/src/models/building.js (debería verse similar a esto)
-module.exports = (sequelize, DataTypes) => {
+// backend/src/models/building.js
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
   const Building = sequelize.define('Building', {
     idEdificio: {
       type: DataTypes.INTEGER,

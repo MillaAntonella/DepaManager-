@@ -72,23 +72,45 @@ api.interceptors.response.use(
   }
 );
 
-// Funciones de autenticación
+// ✅ Funciones de autenticación
 export const authAPI = {
+  /**
+   * 🔐 LOGIN - Envía credenciales al backend
+   * @param {Object} credentials - { correo: string, contrasenia: string }
+   * @returns {Promise} Respuesta del servidor con token y datos del usuario
+   */
   login: (credentials) => {
-    console.log('🔐 Intentando login...', { correo: credentials.correo });
+    console.log('🔐 authAPI.login - INICIO');
+    console.log('📦 Parámetro recibido:', credentials);
+    console.log('📦 Tipo del parámetro:', typeof credentials);
+    console.log('📧 credentials.correo:', credentials.correo);
+    console.log('🔑 credentials.contrasenia:', credentials.contrasenia);
+    console.log('📤 JSON.stringify:', JSON.stringify(credentials, null, 2));
+    
+    // ✅ IMPORTANTE: Enviar directamente el objeto credentials
+    // NO envolver en otro objeto
     return api.post('/auth/login', credentials);
   },
 
+  /**
+   * 👤 REGISTRO DE ADMIN - Crea nuevo administrador
+   * @param {Object} userData - Datos del nuevo administrador
+   * @returns {Promise} Respuesta con token, usuario y edificio creado
+   */
   registerAdmin: (userData) => {
-    console.log('👤 Intentando registro admin...', { 
+    console.log('👤 authAPI.registerAdmin - Registrando admin:', { 
       nombre: userData.nombre_completo,
       correo: userData.correo 
     });
     return api.post('/auth/register-admin', userData);
   },
 
+  /**
+   * 🔍 VERIFICAR TOKEN - Valida el token actual
+   * @returns {Promise} Respuesta con validación del token
+   */
   verifyToken: () => {
-    console.log('🔍 Verificando token...');
+    console.log('🔍 authAPI.verifyToken - Verificando token actual');
     return api.get('/auth/verify');
   }
 };

@@ -22,22 +22,36 @@ export default function TenantLoginPage() {
     setLoading(true);
 
     try {
-      const result = await login({ 
-        correo: email, 
-        contraseña: password 
-      });
+      console.log('📤 TenantLoginPage - Enviando credenciales...');
+      console.log('📧 Email:', email);
+      
+      // ✅ CORREGIDO: Pasar parámetros por separado
+      const result = await login(email, password);
 
       if (result.success) {
-        // Redirigir según el rol
-        if (result.data.usuario.rol === 'Inquilino') {
-          navigate('/tenant/dashboard');
+        console.log('✅ Login exitoso para inquilino');
+        console.log('🎭 Rol:', result.user?.rol);
+        
+        // ✅ Verificar que sea inquilino y redirigir
+        if (result.user.rol === 'Inquilino') {
+          console.log('🔀 Redirigiendo a /tenant/dashboard');
+          console.log('💾 Datos en localStorage antes de redirigir:');
+          console.log('   - Token:', localStorage.getItem('depamanager_token') ? 'EXISTE' : 'NO EXISTE');
+          console.log('   - User:', localStorage.getItem('depamanager_user'));
+          
+          // ✅ Usar window.location.href para forzar recarga completa
+          setTimeout(() => {
+            console.log('🚀 Ejecutando redirección...');
+            window.location.href = '/tenant/dashboard';
+          }, 200);
         } else {
           setError('Esta cuenta no es de inquilino');
         }
       } else {
-        setError(result.error);
+        setError(result.error || 'Error al iniciar sesión');
       }
     } catch (err) {
+      console.error('❌ Error en TenantLoginPage:', err);
       setError('Error al conectar con el servidor');
     } finally {
       setLoading(false);

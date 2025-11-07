@@ -1,225 +1,252 @@
-const DepartmentForm = ({ onClose, onSuccess }) => {
-  const [buildings, setBuildings] = useState([]);
+// frontend/src/pages/admin/departments/DepartmentForm.jsx
+import React, { useState, useEffect } from 'react';
+import { adminAPI } from '../../../services/api/admin';
+import Modal from '../../../components/ui/Modal';
+import Button from '../../../components/ui/Button';
+
+const DepartmentForm = ({ isOpen, onClose, onSuccess, editData = null }) => {
   const [loading, setLoading] = useState(false);
-  // 🔥 ESTADO PARA MANEJAR CAMPOS VACÍOS
-  const [formValues, setFormValues] = useState({
+  const [buildings, setBuildings] = useState([]);
+  const [formData, setFormData] = useState({
+    numero: '',
+    piso: '',
+    metrosCuadrados: '',
+    habitaciones: 1,
+    banios: 1,
     idEdificio: '',
-    numeroPisos: '6',
-    desdeNumero: '101', 
-    hastaNumero: '124',
-    departamentosPorPiso: '4'
+    estado: 'Disponible'
   });
 
+  // Cargar edificios
   useEffect(() => {
-    fetchBuildings();
-  }, []);
-
-  const fetchBuildings = async () => {
-    try {
-      const response = await adminAPI.getBuildings();
-      if (response.data.success) {
-        setBuildings(response.data.data);
-        if (response.data.data.length > 0) {
-          setFormValues(prev => ({
-            ...prev,
-            idEdificio: response.data.data[0].idEdificio.toString()
-          }));
+    const loadBuildings = async () => {
+      try {
+        const response = await adminAPI.getBuildings();
+        if (response.data.success) {
+          setBuildings(response.data.data);
         }
+      } catch (error) {
+        console.error('Error cargando edificios:', error);
       }
-    } catch (error) {
-      console.error('Error cargando edificios:', error);
+    };
+
+    if (isOpen) {
+      loadBuildings();
     }
-  };
+  }, [isOpen]);
+
+  // Si estamos editando, cargar los datos
+  useEffect(() => {
+    if (editData && isOpen) {
+      setFormData({
+        numero: editData.numero || '',
+        piso: editData.piso || '',
+        metrosCuadrados: editData.metrosCuadrados || '',
+        habitaciones: editData.habitaciones || 1,
+        banios: editData.banios || 1,
+        idEdificio: editData.idEdificio || '',
+        estado: editData.estado || 'Disponible'
+      });
+    } else if (isOpen) {
+      // Reset form cuando se abre para crear nuevo
+      setFormData({
+        numero: '',
+        piso: '',
+        metrosCuadrados: '',
+        habitaciones: 1,
+        banios: 1,
+        idEdificio: '',
+        estado: 'Disponible'
+      });
+    }
+  }, [editData, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // 🔥 PERMITIR CAMPOS VACÍOS PERO EVITAR VALORES NO NUMÉRICOS
-    if (value === '' || /^\d*$/.test(value)) {
-      setFormValues(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'habitaciones' || name === 'banios' ? parseInt(value) : value
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // 🔥 VALIDAR QUE NO HAYA CAMPOS VACÍOS
-    const { idEdificio, numeroPisos, desdeNumero, hastaNumero, departamentosPorPiso } = formValues;
-    
-    if (!idEdificio || !numeroPisos || !desdeNumero || !hastaNumero || !departamentosPorPiso) {
-      alert('❌ Todos los campos son requeridos');
-      return;
-    }
-
     setLoading(true);
 
-    const dataToSend = {
-      idEdificio,
-      numeroPisos: parseInt(numeroPisos) || 0,
-      desdeNumero: parseInt(desdeNumero) || 0,
-      hastaNumero: parseInt(hastaNumero) || 0,
-      departamentosPorPiso: parseInt(departamentosPorPiso) || 0
-    };
-
     try {
-      const response = await adminAPI.createDepartmentsBatch(dataToSend);
-      
-      if (response.data.success) {
-        onSuccess(response.data.data);
+      if (editData) {
+        // Actualizar departamento existente
+        await adminAPI.updateDepartment(editData.idDepartamento, formData);
       } else {
-        alert(response.data.message || 'Error al crear departamentos');
+        // Crear departamento individual
+        const batchData = {
+          idEdificio: formData.idEdificio,
+          departamentos: [{
+            numero: formData.numero,
+            piso: parseInt(formData.piso),
+            metrosCuadrados: parseFloat(formData.metrosCuadrados) || null,
+            habitaciones: parseInt(formData.habitaciones),
+            banios: parseInt(formData.banios),
+            estado: formData.estado
+          }]
+        };
+        await adminAPI.createDepartmentsBatch(batchData);
       }
+
+      onSuccess();
+      onClose();
     } catch (error) {
-      console.error('Error creando departamentos:', error);
-      alert(error.response?.data?.message || 'Error de conexión');
+      console.error('Error guardando departamento:', error);
+      alert(error.response?.data?.message || 'Error al guardar departamento');
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 CALCULAR TOTAL DE FORMA SEGURA
-  const calcularTotalDepartamentos = () => {
-    const numPisos = formValues.numeroPisos === '' ? 0 : parseInt(formValues.numeroPisos) || 0;
-    const numPorPiso = formValues.departamentosPorPiso === '' ? 0 : parseInt(formValues.departamentosPorPiso) || 0;
-    const total = numPisos * numPorPiso;
-    return isNaN(total) ? 0 : total;
-  };
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800">Crear Departamentos en Lote</h2>
-          <p className="text-gray-600 text-sm mt-1">
-            Configure la numeración automática de departamentos
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Edificio */}
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose}
+      title={editData ? 'Editar Departamento' : 'Nuevo Departamento'}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Edificio
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Edificio *
             </label>
             <select
               name="idEdificio"
-              value={formValues.idEdificio}
+              value={formData.idEdificio}
               onChange={handleChange}
               required
-              disabled={loading}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Seleccionar edificio</option>
               {buildings.map(building => (
                 <option key={building.idEdificio} value={building.idEdificio}>
-                  {building.nombre} - {building.direccion}
+                  {building.nombre}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Número de pisos */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Número de pisos (máx. 8)
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Número *
             </label>
             <input
-              type="text" // 🔥 CAMBIADO A "text" PARA MEJOR CONTROL
-              name="numeroPisos"
-              value={formValues.numeroPisos}
+              type="text"
+              name="numero"
+              value={formData.numero}
               onChange={handleChange}
-              placeholder="6"
               required
-              disabled={loading}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 101, A-1"
             />
           </div>
 
-          {/* Rango de números */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Desde (número)
-              </label>
-              <input
-                type="text" // 🔥 CAMBIADO A "text"
-                name="desdeNumero"
-                value={formValues.desdeNumero}
-                onChange={handleChange}
-                placeholder="101"
-                required
-                disabled={loading}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hasta (número)
-              </label>
-              <input
-                type="text" // 🔥 CAMBIADO A "text"
-                name="hastaNumero"
-                value={formValues.hastaNumero}
-                onChange={handleChange}
-                placeholder="124"
-                required
-                disabled={loading}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          {/* Departamentos por piso */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Departamentos por piso (máx. 4)
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Piso *
             </label>
             <input
-              type="text" // 🔥 CAMBIADO A "text"
-              name="departamentosPorPiso"
-              value={formValues.departamentosPorPiso}
+              type="number"
+              name="piso"
+              value={formData.piso}
               onChange={handleChange}
-              placeholder="4"
               required
-              disabled={loading}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              min="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 1"
             />
           </div>
 
-          {/* Resumen */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Resumen de creación</h3>
-            <div className="text-sm text-blue-600 space-y-1">
-              <p>• Pisos: {formValues.numeroPisos || '0'}</p>
-              <p>• Departamentos por piso: {formValues.departamentosPorPiso || '0'}</p>
-              <p>• Total departamentos: {calcularTotalDepartamentos()} / 32 máximo</p>
-              <p>• Numeración: {formValues.desdeNumero || '?'} - {formValues.hastaNumero || '?'}</p>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Metros Cuadrados
+            </label>
+            <input
+              type="number"
+              name="metrosCuadrados"
+              value={formData.metrosCuadrados}
+              onChange={handleChange}
+              step="0.01"
+              min="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 65.50"
+            />
           </div>
 
-          {/* Botones */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {loading ? 'Creando...' : 'Confirmar y Crear Departamentos'}
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Habitaciones
+            </label>
+            <input
+              type="number"
+              name="habitaciones"
+              value={formData.habitaciones}
+              onChange={handleChange}
+              min="1"
+              max="10"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        </form>
-      </div>
-    </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Baños
+            </label>
+            <input
+              type="number"
+              name="banios"
+              value={formData.banios}
+              onChange={handleChange}
+              min="1"
+              max="5"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Estado
+            </label>
+            <select
+              name="estado"
+              value={formData.estado}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Disponible">Disponible</option>
+              <option value="Ocupado">Ocupado</option>
+              <option value="En Mantenimiento">En Mantenimiento</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Botones de Acción */}
+        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+          >
+            {loading ? 'Guardando...' : (editData ? 'Actualizar' : 'Crear Departamento')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 };
+
+export default DepartmentForm;

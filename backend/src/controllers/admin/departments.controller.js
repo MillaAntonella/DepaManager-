@@ -250,10 +250,338 @@ const createDefaultBuilding = async (req, res) => {
   }
 };
 
-// ✅ CORRECTO: Exportar solo las funciones de departamentos
+
+// ✅ ACTUALIZAR DEPARTAMENTO INDIVIDUAL
+const updateDepartment = async (req, res) => {
+  try {
+    console.log('✏️ Actualizando departamento ID:', req.params.id);
+    
+    const adminId = req.user.idUsuario;
+    const departmentId = req.params.id;
+    const { numero, piso, metrosCuadrados, habitaciones, banios, estado, idInquilino } = req.body;
+
+    // Verificar que el departamento existe y pertenece al admin
+    const department = await Department.findOne({
+      include: [{
+        model: Building,
+        where: { idAdministrador: adminId }
+      }],
+      where: { idDepartamento: departmentId }
+    });
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: 'Departamento no encontrado'
+      });
+    }
+
+    // Actualizar el departamento
+    await Department.update(
+      {
+        numero: numero || department.numero,
+        piso: piso || department.piso,
+        metrosCuadrados: metrosCuadrados || department.metrosCuadrados,
+        habitaciones: habitaciones || department.habitaciones,
+        banios: banios || department.banios,
+        estado: estado || department.estado,
+        idInquilino: idInquilino !== undefined ? idInquilino : department.idInquilino
+      },
+      {
+        where: { idDepartamento: departmentId }
+      }
+    );
+
+    // Obtener el departamento actualizado
+    const updatedDepartment = await Department.findByPk(departmentId, {
+      include: [
+        {
+          model: Building,
+          as: 'edificio',
+          attributes: ['idEdificio', 'nombre', 'direccion']
+        },
+        {
+          model: User,
+          as: 'inquilino',
+          attributes: ['idUsuario', 'nombreCompleto', 'correo']
+        }
+      ]
+    });
+
+    console.log('✅ Departamento actualizado:', updatedDepartment.numero);
+
+    res.json({
+      success: true,
+      message: 'Departamento actualizado exitosamente',
+      data: updatedDepartment
+    });
+
+  } catch (error) {
+    console.error('❌ Error actualizando departamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar departamento',
+      error: error.message
+    });
+  }
+};
+
+// ✅ ELIMINAR DEPARTAMENTO
+const deleteDepartment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    console.log('🗑️ Eliminando departamento ID:', req.params.id);
+    
+    const adminId = req.user.idUsuario;
+    const departmentId = req.params.id;
+
+    // Verificar que el departamento existe y pertenece al admin
+    const department = await Department.findOne({
+      include: [{
+        model: Building,
+        where: { idAdministrador: adminId }
+      }],
+      where: { idDepartamento: departmentId },
+      transaction
+    });
+
+    if (!department) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Departamento no encontrado'
+      });
+    }
+
+    // Verificar que no esté ocupado
+    if (department.estado === 'Ocupado') {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar un departamento ocupado'
+      });
+    }
+
+    // Eliminar el departamento
+    await Department.destroy({
+      where: { idDepartamento: departmentId },
+      transaction
+    });
+
+    // Actualizar contador en el edificio
+    await Building.decrement('totalDepartamentos', {
+      by: 1,
+      where: { idEdificio: department.idEdificio },
+      transaction
+    });
+
+    await transaction.commit();
+
+    console.log('✅ Departamento eliminado:', department.numero);
+
+    res.json({
+      success: true,
+      message: 'Departamento eliminado exitosamente'
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error('❌ Error eliminando departamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar departamento',
+      error: error.message
+    });
+  }
+};
+
+// ✅ OBTENER DETALLES DE DEPARTAMENTO
+const getDepartmentDetails = async (req, res) => {
+  try {
+    console.log('🔍 Obteniendo detalles del departamento ID:', req.params.id);
+    
+    const adminId = req.user.idUsuario;
+    const departmentId = req.params.id;
+
+    const department = await Department.findOne({
+      include: [
+        {
+          model: Building,
+          as: 'edificio',
+          where: { idAdministrador: adminId },
+          attributes: ['idEdificio', 'nombre', 'direccion']
+        },
+        {
+          model: User,
+          as: 'inquilino',
+          attributes: ['idUsuario', 'nombreCompleto', 'correo', 'telefono', 'dni']
+        }
+      ],
+      where: { idDepartamento: departmentId }
+    });
+
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: 'Departamento no encontrado'
+      });
+    }
+
+    console.log('✅ Detalles del departamento obtenidos:', department.numero);
+
+    res.json({
+      success: true,
+      data: department
+    });
+
+  } catch (error) {
+    console.error('❌ Error obteniendo detalles del departamento:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener detalles del departamento',
+      error: error.message
+    });
+  }
+};
+
+// ✅ OBTENER DEPARTAMENTOS DISPONIBLES
+const getAvailableDepartments = async (req, res) => {
+  try {
+    console.log('🔍 [DEPARTMENTS] Obteniendo departamentos disponibles para admin:', req.user.idUsuario);
+    
+    const adminId = req.user.idUsuario;
+
+    // 1. Primero obtener los edificios del administrador
+    console.log('🔍 [DEPARTMENTS] Buscando edificios del admin...');
+    const edificiosAdmin = await Building.findAll({
+      where: { idAdministrador: adminId },
+      attributes: ['idEdificio', 'nombre', 'direccion']
+    });
+
+    console.log(`🏢 [DEPARTMENTS] Edificios del admin encontrados: ${edificiosAdmin.length}`);
+    
+    if (edificiosAdmin.length === 0) {
+      console.log('⚠️ [DEPARTMENTS] No hay edificios para este admin');
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const idsEdificios = edificiosAdmin.map(ed => ed.idEdificio);
+    console.log('🔍 [DEPARTMENTS] IDs de edificios:', idsEdificios);
+
+    // 2. Buscar departamentos disponibles
+    console.log('🔍 [DEPARTMENTS] Buscando departamentos disponibles...');
+    
+    // Primero probar con include
+    let departments;
+    try {
+      console.log('🔍 [DEPARTMENTS] Probando consulta con INCLUDE...');
+      departments = await Department.findAll({
+        where: {
+          estado: 'Disponible',
+          idInquilino: null,
+          idEdificio: idsEdificios
+        },
+        include: [
+          {
+            model: Building,
+            as: 'edificio',
+            attributes: ['idEdificio', 'nombre', 'direccion']
+          }
+        ],
+        attributes: [
+          'idDepartamento',
+          'numero',
+          'piso',
+          'metrosCuadrados',
+          'habitaciones',
+          'banios',
+          'estado'
+        ],
+        order: [
+          ['piso', 'ASC'],
+          ['numero', 'ASC']
+        ]
+      });
+      console.log(`✅ [DEPARTMENTS] Consulta con INCLUDE exitosa: ${departments.length} departamentos`);
+    } catch (includeError) {
+      console.error('❌ [DEPARTMENTS] Error con INCLUDE, usando consulta alternativa:', includeError.message);
+      
+      // Consulta alternativa sin include
+      departments = await Department.findAll({
+        where: {
+          estado: 'Disponible',
+          idInquilino: null,
+          idEdificio: idsEdificios
+        },
+        attributes: [
+          'idDepartamento',
+          'numero',
+          'piso',
+          'metrosCuadrados',
+          'habitaciones',
+          'banios',
+          'estado',
+          'idEdificio'
+        ],
+        order: [
+          ['piso', 'ASC'],
+          ['numero', 'ASC']
+        ]
+      });
+
+      // Agregar información del edificio manualmente
+      departments = departments.map(dept => {
+        const edificio = edificiosAdmin.find(ed => ed.idEdificio === dept.idEdificio);
+        return {
+          ...dept.toJSON(),
+          edificio: edificio ? {
+            idEdificio: edificio.idEdificio,
+            nombre: edificio.nombre,
+            direccion: edificio.direccion
+          } : null
+        };
+      });
+      console.log(`✅ [DEPARTMENTS] Consulta alternativa exitosa: ${departments.length} departamentos`);
+    }
+
+    // 3. Log detallado de resultados
+    console.log(`📦 [DEPARTMENTS] Total departamentos disponibles: ${departments.length}`);
+    if (departments.length > 0) {
+      console.log('📦 [DEPARTMENTS] Primeros 3 departamentos:');
+      departments.slice(0, 3).forEach((dept, index) => {
+        console.log(`   ${index + 1}. ${dept.numero} - Piso ${dept.piso} - Edificio: ${dept.edificio?.nombre || 'N/A'}`);
+      });
+    }
+
+    // 4. Responder
+    res.json({
+      success: true,
+      data: departments
+    });
+
+  } catch (error) {
+    console.error('❌ [DEPARTMENTS] Error general obteniendo departamentos disponibles:', error);
+    console.error('❌ [DEPARTMENTS] Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener departamentos disponibles',
+      error: error.message
+    });
+  }
+};
+
+// ✅ ACTUALIZAR EXPORTS
 module.exports = {
   createDepartmentsBatch,
   getDepartments,
   getBuildings,
-  createDefaultBuilding  // ✅ AGREGAR ESTA LÍNEA
+  createDefaultBuilding,
+  updateDepartment,        // ✅ AGREGAR
+  deleteDepartment,        // ✅ AGREGAR
+  getDepartmentDetails,    // ✅ AGREGAR
+  getAvailableDepartments  // ✅ AGREGAR
 };

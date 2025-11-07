@@ -1,3 +1,7 @@
+// frontend/src/components/ui/Button.jsx
+import React from 'react';
+
+// Exportación nombrada (la que ya tienes)
 export function Button({ children, className = '', variant = 'default', ...props }) {
   const baseStyles = 'inline-flex items-center justify-center px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
   
@@ -15,3 +19,7 @@ export function Button({ children, className = '', variant = 'default', ...props
     </button>
   );
 }
+
+// Agrega esta exportación por defecto
+const ButtonDefault = Button;
+export default ButtonDefault;

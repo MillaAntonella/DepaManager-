@@ -113,7 +113,7 @@ module.exports = (sequelize) => {
       }
     }
   });
-
+  
   // ✅ MÉTODO MEJORADO con logs de debug
   User.prototype.validarContrasenia = async function(contrasenia) {
     try {

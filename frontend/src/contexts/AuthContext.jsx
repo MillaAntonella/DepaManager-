@@ -1,5 +1,5 @@
 // frontend/src/contexts/AuthContext.jsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api/auth';
 
 const AuthContext = createContext();
@@ -14,60 +14,106 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  // ✅ FUNCIÓN ÚNICA PARA VERIFICAR AUTENTICACIÓN
+  const checkAuth = useCallback(async () => {
+    console.log('🔍 AuthContext.checkAuth - INICIANDO verificación...');
     try {
       const token = localStorage.getItem('depamanager_token');
       const userData = localStorage.getItem('depamanager_user');
-      
+
+      console.log('📦 Datos en localStorage:');
+      console.log('   - Token existe:', token ? 'SÍ' : 'NO');
+      console.log('   - UserData existe:', userData ? 'SÍ' : 'NO');
+
       if (token && userData) {
-        console.log('🔍 Verificando token...');
-        const response = await authAPI.verifyToken();
-        if (response.data.success) {
-          setUser(response.data.user);
-          console.log('✅ Usuario autenticado:', response.data.user.correo);
-        } else {
-          console.log('❌ Token inválido');
-          clearAuth();
-        }
+        const user = JSON.parse(userData);
+        console.log('✅ Usuario recuperado de localStorage:', user);
+        console.log('   - Correo:', user.correo);
+        console.log('   - Rol:', user.rol);
+        console.log('   - ID:', user.id);
+        
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        console.log('✅ Estado actualizado: isAuthenticated = true');
       } else {
-        console.log('🔐 No hay token almacenado');
+        console.log('❌ No hay datos de autenticación en localStorage');
       }
     } catch (error) {
-      console.error('❌ Error verificando autenticación:', error);
+      console.error('❌ Error en checkAuth:', error);
       clearAuth();
     } finally {
       setLoading(false);
+      console.log('✅ checkAuth completado - loading = false');
     }
-  };
+  }, []);
 
+  // ✅ FUNCIÓN PARA LIMPIAR AUTENTICACIÓN
   const clearAuth = () => {
     localStorage.removeItem('depamanager_token');
     localStorage.removeItem('depamanager_user');
     setUser(null);
+    setIsAuthenticated(false);
   };
 
-  const login = async (credentials) => {
+  // ✅ EFFECT PARA VERIFICAR AUTENTICACIÓN AL INICIAR
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // ✅ FUNCIÓN DE LOGIN - Funciona para Admin e Inquilino
+  const login = async (correo, contrasenia) => {
     try {
-      console.log('🔐 Enviando login...');
+      console.log('🔐 AuthContext.login - INICIO');
+      console.log('📧 Parámetro correo recibido:', correo);
+      console.log('🔑 Parámetro contrasenia recibido:', contrasenia);
+      console.log('📦 Tipo de correo:', typeof correo);
+      console.log('📦 Tipo de contrasenia:', typeof contrasenia);
+      
+      // ✅ Crear objeto de credenciales
+      const credentials = { correo, contrasenia };
+      console.log('� Objeto credentials creado:', JSON.stringify(credentials, null, 2));
+      
+      // ✅ IMPORTANTE: Enviar datos directamente, NO dentro de objeto "email"
       const response = await authAPI.login(credentials);
       
       console.log('✅ Respuesta del servidor:', response.data);
       
       if (response.data.success) {
-        localStorage.setItem('depamanager_token', response.data.token);
-        localStorage.setItem('depamanager_user', JSON.stringify(response.data.user));
-        setUser(response.data.user);
+        const { token, user } = response.data;
         
-        return { 
-          success: true, 
-          user: response.data.user
-        };
+        console.log('✅ Login exitoso - Datos recibidos del servidor:');
+        console.log('   - Token recibido:', token ? 'SÍ (' + token.substring(0, 20) + '...)' : 'NO');
+        console.log('   - Usuario:', user);
+        console.log('   - Rol:', user.rol);
+        console.log('   - Nombre:', user.nombre);
+        
+        // Guardar en localStorage
+        localStorage.setItem('depamanager_token', token);
+        localStorage.setItem('depamanager_user', JSON.stringify(user));
+        
+        console.log('💾 Datos guardados en localStorage');
+        console.log('   - Token guardado:', localStorage.getItem('depamanager_token') ? 'SÍ' : 'NO');
+        console.log('   - User guardado:', localStorage.getItem('depamanager_user') ? 'SÍ' : 'NO');
+        
+        // Actualizar estado global
+        setUser(user);
+        setIsAuthenticated(true);
+        
+        console.log('🔄 Estado del contexto actualizado');
+        console.log('   - isAuthenticated:', true);
+        console.log('   - user.rol:', user.rol);
+        
+        console.log('✅ Login completado - NO redirigiendo desde AuthContext');
+        console.log('   El LoginPage se encargará de la redirección');
+        
+        // ✅ NO redirigir aquí - dejar que el componente que llama maneje la redirección
+        // Esto evita conflictos con React Router
+        
+        return { success: true, user };
       } else {
         return { 
           success: false, 
@@ -77,6 +123,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error en login:', error);
       
+      // Manejo de errores de respuesta del servidor
       if (error.response) {
         return { 
           success: false, 
@@ -84,6 +131,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
+      // Error de conexión
       return { 
         success: false, 
         error: 'Error de conexión con el servidor' 
@@ -91,12 +139,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ FUNCIÓN DE LOGOUT
   const logout = () => {
     console.log('🚪 Cerrando sesión...');
     clearAuth();
+    window.location.href = '/';
   };
 
-  // ✅ FUNCIÓN DE REGISTRO PARA ADMINISTRADOR (agregada para solucionar error)
+  // ✅ FUNCIÓN DE REGISTRO PARA ADMINISTRADOR
   const registerAdmin = async (userData) => {
     try {
       console.log('👤 Registrando nuevo administrador...', userData);
@@ -108,7 +158,9 @@ export const AuthProvider = ({ children }) => {
         // Guardar token y usuario en localStorage
         localStorage.setItem('depamanager_token', response.data.token);
         localStorage.setItem('depamanager_user', JSON.stringify(response.data.user));
+        
         setUser(response.data.user);
+        setIsAuthenticated(true);
         
         console.log('✅ Administrador registrado exitosamente:', response.data.user.correo);
         
@@ -122,11 +174,14 @@ export const AuthProvider = ({ children }) => {
           console.warn('⚠️ No se pudo crear el edificio automáticamente');
         }
         
+        // Redirigir al dashboard de admin
+        window.location.href = '/admin/dashboard';
+        
         return { 
           success: true, 
           user: response.data.user,
           buildingCreated: response.data.buildingCreated,
-          building: response.data.building // ✅ Devolver info del edificio
+          building: response.data.building
         };
       } else {
         return { 
@@ -137,7 +192,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error en registro:', error);
       
-      // ✅ MANEJO MEJORADO DE ERRORES CON MENSAJES ESPECÍFICOS
       if (error.response) {
         const errorMessage = error.response.data?.message || `Error ${error.response.status}`;
         console.error('❌ Error del servidor:', errorMessage);
@@ -148,7 +202,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
       
-      // ✅ Error de conexión
       console.error('❌ Error de conexión con el servidor');
       return { 
         success: false, 
@@ -157,13 +210,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ VALOR DEL CONTEXTO
   const value = {
     user,
+    isAuthenticated,
     loading,
     login,
     logout,
-    registerAdmin, // ✅ AGREGADA la función registerAdmin
-    isAuthenticated: !!user
+    registerAdmin,
+    checkAuth
   };
 
   return (

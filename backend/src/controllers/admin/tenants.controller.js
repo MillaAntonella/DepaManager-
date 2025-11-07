@@ -33,10 +33,11 @@ const getTenants = async (req, res) => {
       include: [
         {
           model: Department,
-          as: 'departamentosInquilino',
+          as: 'departamentosInquilino', // ✅ AGREGAR 'as'
           include: [
             {
               model: Building,
+              as: 'edificio', // ✅ AGREGAR 'as'
               where: { idAdministrador: adminId },
               attributes: ['idEdificio', 'nombre', 'direccion']
             }
@@ -44,19 +45,20 @@ const getTenants = async (req, res) => {
         },
         {
           model: Contract,
-          as: 'contratos',
+          as: 'contratos', // ✅ AGREGAR 'as'
           where: { estado: 'Activo' },
           required: false,
           include: [
             {
               model: Department,
+              as: 'departamento', // ✅ AGREGAR 'as'
               attributes: ['numero', 'piso']
             }
           ]
         }
       ],
       order: [['nombreCompleto', 'ASC']]
-    });
+    })
 
     // Procesar datos para respuesta
     const processedTenants = tenants.map(tenant => {
@@ -169,11 +171,14 @@ const createTenant = async (req, res) => {
 
     // Si se proporcionó un departamento, asignarlo
     if (idDepartamento) {
-      // Verificar que el departamento existe y pertenece al admin
+      console.log('🔍 Verificando departamento ID:', idDepartamento);
+      
+      // ✅ CORRECCIÓN: Agregar alias 'as' en el include
       const departamento = await Department.findOne({
         include: [
           {
             model: Building,
+            as: 'edificio', // ✅ AGREGAR ESTA LÍNEA
             where: { idAdministrador: adminId }
           }
         ],
@@ -182,6 +187,8 @@ const createTenant = async (req, res) => {
       });
 
       if (departamento) {
+        console.log('✅ Departamento encontrado:', departamento.numero);
+        
         // Actualizar el departamento con el inquilino
         await Department.update(
           { 
@@ -204,13 +211,17 @@ const createTenant = async (req, res) => {
             montoMensual: montoMensual,
             estado: 'Activo'
           }, { transaction });
+          
+          console.log('✅ Contrato creado para el inquilino');
         }
+      } else {
+        console.log('⚠️ Departamento no encontrado o no pertenece al admin');
       }
     }
 
     await transaction.commit();
 
-    console.log('✅ Inquilino creado:', nuevoInquilino.nombreCompleto);
+    console.log('✅ Inquilino creado exitosamente:', nuevoInquilino.nombreCompleto);
 
     // Omitir contraseña en la respuesta
     const { contrasenia: _, ...inquilinoSinPassword } = nuevoInquilino.toJSON();
@@ -470,11 +481,96 @@ const updateTenantStatus = async (req, res) => {
   }
 };
 
+// ✅ ELIMINAR INQUILINO
+const deleteTenant = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    console.log('🗑️ Eliminando inquilino ID:', req.params.id);
+    
+    const adminId = req.user.idUsuario;
+    const tenantId = req.params.id;
+
+    // Verificar que el inquilino existe
+    const inquilino = await User.findOne({
+      where: { 
+        idUsuario: tenantId,
+        rol: 'Inquilino'
+      },
+      transaction
+    });
+
+    if (!inquilino) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Inquilino no encontrado'
+      });
+    }
+
+    // Verificar que no tenga departamentos asignados
+    const departamentosAsignados = await Department.count({
+      where: { idInquilino: tenantId },
+      transaction
+    });
+
+    if (departamentosAsignados > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar un inquilino con departamentos asignados'
+      });
+    }
+
+    // Verificar que no tenga contratos activos
+    const contratosActivos = await Contract.count({
+      where: { 
+        idInquilino: tenantId,
+        estado: 'Activo'
+      },
+      transaction
+    });
+
+    if (contratosActivos > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar un inquilino con contratos activos'
+      });
+    }
+
+    // Eliminar el inquilino
+    await User.destroy({
+      where: { idUsuario: tenantId },
+      transaction
+    });
+
+    await transaction.commit();
+
+    console.log('✅ Inquilino eliminado:', inquilino.nombreCompleto);
+
+    res.json({
+      success: true,
+      message: 'Inquilino eliminado exitosamente'
+    });
+
+  } catch (error) {
+    await transaction.rollback(); // ✅ AGREGAR rollback AQUÍ TAMBIÉN
+    console.error('❌ Error eliminando inquilino:', error); // ✅ CORREGIR mensaje de error
+    res.status(500).json({
+      success: false,
+      message: 'Error al eliminar inquilino',
+      error: error.message
+    });
+  }
+};
+
 // ✅ EXPORTAR TODAS LAS FUNCIONES DEL CONTROLADOR
 module.exports = {
   getTenants,
   createTenant,
   updateTenant,
   getTenantDetails,
-  updateTenantStatus
+  updateTenantStatus,
+  deleteTenant
 };

@@ -1,4 +1,3 @@
-// frontend/src/pages/public/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,17 +7,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
   const navigate = useNavigate();
   const { login, isAuthenticated, user } = useAuth();
 
   // Redirigir si ya está autenticado
   useEffect(() => {
-    console.log('🔍 LoginPage - Estado:', { isAuthenticated, user: user?.correo });
-    
     if (isAuthenticated && user) {
-      console.log('✅ Usuario autenticado, redirigiendo a /admin');
-      navigate('/admin', { replace: true });
+      if (user.rol === 'Administrador') {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.rol === 'Inquilino') {
+        navigate('/tenant/dashboard', { replace: true });
+      }
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -28,39 +27,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log('📤 Enviando credenciales...');
-      const result = await login({ 
-        correo: email, 
-        contrasenia: password 
-      });
-
-      console.log('📋 Resultado del login:', result);
-
-      if (result.success) {
-        console.log('✅ Login exitoso, el useEffect se encargará de la redirección');
-        // La redirección se maneja en el useEffect automáticamente
-      } else {
-        setError(result.error || 'Error en el login');
-      }
+      await login(email, password);
     } catch (err) {
-      console.error('💥 Error inesperado:', err);
-      setError('Error inesperado. Por favor intenta nuevamente.');
+      setError(err.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
   };
-
-  // Si ya está autenticado, mostrar loading
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className="text-slate-600">Redirigiendo al panel de administración...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex">
@@ -113,8 +86,8 @@ export default function LoginPage() {
 
             {/* Mensaje de error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded text-sm">
-                {error}
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
@@ -122,16 +95,9 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-full hover:from-emerald-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold py-3 px-6 rounded-full hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
-                  Ingresando...
-                </>
-              ) : (
-                'Ingresar'
-              )}
+              {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
           </form>
 
@@ -149,8 +115,9 @@ export default function LoginPage() {
       </div>
 
       {/* COLUMNA DERECHA - ILUSTRACIÓN */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 items-center justify-center p-12">
-        <div className="text-center text-white">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 items-center justify-center p-12 relative overflow-hidden">
+        {/* Texto adicional */}
+        <div className="text-center text-white z-10">
           <p className="text-4xl font-bold mb-4">DepaManager</p>
           <p className="text-emerald-100 text-lg">Gestión Inteligente de Propiedades</p>
         </div>

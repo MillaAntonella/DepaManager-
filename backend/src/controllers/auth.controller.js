@@ -2,19 +2,22 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User, Building } = require('../models'); // ✅ Ya está importado
 
-// LOGIN DE USUARIO
+// ✅ LOGIN DE USUARIO - Funciona para Admin e Inquilino
 const login = async (req, res) => {
   try {
     console.log('=== 🔍 INICIANDO LOGIN EN BACKEND ===');
     console.log('📥 Body COMPLETO recibido:', JSON.stringify(req.body, null, 2));
-    console.log('📥 Headers:', req.headers);
     console.log('📥 Content-Type:', req.get('Content-Type'));
 
-    const { correo, contrasenia } = req.body;
+    // ✅ Extraer correo y contraseña (aceptar ambas variantes)
+    const { correo, contrasenia, contraseña } = req.body;
+    
+    // Usar la que venga (con o sin ñ)
+    const password = contrasenia || contraseña;
 
-    // Validar campos requeridos
-    if (!correo || !contrasenia) {
-      console.log('❌ Campos faltantes en backend');
+    // ✅ Validar campos requeridos
+    if (!correo || !password) {
+      console.log('❌ Campos faltantes - correo:', correo ? '✅' : '❌', 'password:', password ? '✅' : '❌');
       return res.status(400).json({
         success: false,
         message: 'Correo y contraseña son requeridos'
@@ -23,7 +26,7 @@ const login = async (req, res) => {
 
     console.log('🔍 Buscando usuario en BD:', correo);
 
-    // Buscar usuario por correo
+    // ✅ Buscar usuario por correo
     const usuario = await User.findOne({
       where: { correo }
     });
@@ -37,23 +40,20 @@ const login = async (req, res) => {
     }
 
     console.log('✅ Usuario encontrado ID:', usuario.idUsuario);
-    console.log('🔍 Estado del usuario:', usuario.estado);
-    console.log('🔍 Contraseña en BD existe?:', usuario.contrasenia ? 'SÍ' : 'NO');
-    console.log('🔍 Método validarContrasenia existe?:', typeof usuario.validarContrasenia);
+    console.log('� Rol:', usuario.rol);
+    console.log('� Estado:', usuario.estado);
 
-    // Verificar contraseña
-    console.log('🔐 Iniciando verificación de contraseña...');
+    // ✅ Verificar contraseña
+    console.log('🔐 Verificando contraseña...');
     let contraseniaValida;
     
     try {
       if (typeof usuario.validarContrasenia === 'function') {
-        console.log('🔐 Usando método validarContrasenia...');
-        contraseniaValida = await usuario.validarContrasenia(contrasenia);
+        contraseniaValida = await usuario.validarContrasenia(password);
       } else {
-        console.log('⚠️ Usando bcrypt directamente...');
-        contraseniaValida = await bcrypt.compare(contrasenia, usuario.contrasenia);
+        contraseniaValida = await bcrypt.compare(password, usuario.contrasenia);
       }
-      console.log('🔐 Resultado verificación contraseña:', contraseniaValida);
+      console.log('🔐 Contraseña válida:', contraseniaValida ? '✅' : '❌');
     } catch (bcryptError) {
       console.error('❌ Error en verificación de contraseña:', bcryptError);
       return res.status(500).json({
@@ -63,16 +63,16 @@ const login = async (req, res) => {
     }
 
     if (!contraseniaValida) {
-      console.log('❌ Contraseña incorrecta en backend');
+      console.log('❌ Contraseña incorrecta');
       return res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
       });
     }
 
-    // Verificar que el usuario esté activo
+    // ✅ Verificar que el usuario esté activo
     if (usuario.estado !== 'Activo') {
-      console.log('❌ Usuario inactivo en backend:', usuario.estado);
+      console.log('❌ Usuario inactivo:', usuario.estado);
       return res.status(401).json({
         success: false,
         message: 'Tu cuenta no está activa. Contacta al administrador.'
@@ -81,32 +81,20 @@ const login = async (req, res) => {
 
     console.log('✅ Credenciales válidas, generando token...');
 
-    // Generar token JWT
-    let token;
-    try {
-      console.log('🔑 JWT_SECRET configurado?:', process.env.JWT_SECRET ? 'SÍ' : 'NO');
-      console.log('🔑 Longitud JWT_SECRET:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 'NO DEFINIDO');
-      
-      token = jwt.sign(
-        { 
-          id: usuario.idUsuario,
-          correo: usuario.correo,
-          rol: usuario.rol 
-        },
-        process.env.JWT_SECRET || 'fallback_secret_2024',
-        { expiresIn: '24h' }
-      );
-      console.log('✅ Token generado correctamente');
-      console.log('🔑 Token (primeros 50 chars):', token ? token.substring(0, 50) + '...' : 'NO GENERADO');
-    } catch (jwtError) {
-      console.error('❌ Error al generar token JWT:', jwtError);
-      return res.status(500).json({
-        success: false,
-        message: 'Error al generar token de autenticación'
-      });
-    }
+    // ✅ Generar token JWT
+    const token = jwt.sign(
+      { 
+        id: usuario.idUsuario,
+        correo: usuario.correo,
+        rol: usuario.rol 
+      },
+      process.env.JWT_SECRET || 'fallback_secret_2024',
+      { expiresIn: '24h' }
+    );
+    
+    console.log('✅ Token generado correctamente');
 
-    // Responder con datos del usuario
+    // ✅ Preparar datos del usuario para respuesta
     const usuarioData = {
       id: usuario.idUsuario,
       nombre: usuario.nombreCompleto,
@@ -117,15 +105,11 @@ const login = async (req, res) => {
       plan: usuario.plan
     };
 
-    console.log('📤 Preparando respuesta para frontend:', {
-      success: true,
-      message: 'Login exitoso',
-      token: token ? 'PRESENTE' : 'AUSENTE',
-      user: usuarioData
-    });
+    console.log('📤 Enviando respuesta exitosa al frontend');
+    console.log('👤 Usuario:', usuarioData.correo);
+    console.log('🎭 Rol:', usuarioData.rol);
 
-    // ✅ ENVIAR RESPUESTA
-    console.log('🚀 Enviando respuesta al frontend...');
+    // ✅ ENVIAR RESPUESTA EXITOSA
     res.json({
       success: true,
       message: 'Login exitoso',
@@ -133,13 +117,11 @@ const login = async (req, res) => {
       user: usuarioData
     });
 
-    console.log('✅ Respuesta enviada al frontend para:', usuario.correo);
+    console.log('✅ Login completado exitosamente para:', usuario.correo);
 
   } catch (error) {
     console.error('❌ Error completo en login backend:', error);
     console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Tipo de error:', error.name);
-    console.error('❌ Mensaje de error:', error.message);
     
     res.status(500).json({
       success: false,
