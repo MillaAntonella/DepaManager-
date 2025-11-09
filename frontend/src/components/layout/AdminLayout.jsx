@@ -1,29 +1,24 @@
 // frontend/src/components/layout/AdminLayout.jsx
 import React from 'react';
 import AdminSidebar from './AdminSidebar';
+import AdminHeader from './AdminHeader';
 
 export default function AdminLayout({ children }) {
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Sidebar - Navegación lateral */}
       <AdminSidebar />
       
+      {/* Contenedor principal - Header + Contenido */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="flex justify-between items-center px-6 py-4">
-            <h1 className="text-xl font-semibold text-gray-800">Panel de Administración</h1>
-            <div className="text-sm text-gray-600">
-              {new Date().toLocaleDateString('es-ES', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </div>
-          </div>
-        </header>
+        {/* Header - Barra superior con buscador y perfil */}
+        <AdminHeader />
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          {children}
+        {/* Main Content - Área de contenido principal */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>
