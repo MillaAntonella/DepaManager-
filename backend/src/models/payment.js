@@ -72,9 +72,7 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'pagos',
-    timestamps: true,
-    createdAt: 'fechaCreacion',
-    updatedAt: false
+    timestamps: false
   });
 
   return Payment;

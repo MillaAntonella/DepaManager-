@@ -162,27 +162,25 @@ const TenantDetails = () => {
               {/* Información del Departamento */}
               <div className="bg-gray-50 p-6 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Departamento Asignado</h3>
-                {tenant.departamentosInquilino && tenant.departamentosInquilino.length > 0 ? (
-                  tenant.departamentosInquilino.map(dept => (
-                    <div key={dept.idDepartamento} className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Número</label>
-                        <p className="text-gray-900 font-medium">Apt. {dept.numero}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Piso</label>
-                        <p className="text-gray-900">Piso {dept.piso}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Edificio</label>
-                        <p className="text-gray-900">{dept.edificio?.nombre || '--'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">Dirección</label>
-                        <p className="text-gray-900">{dept.edificio?.direccion || '--'}</p>
-                      </div>
+                {tenant.departamento ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Número</label>
+                      <p className="text-gray-900 font-medium">Apt. {tenant.departamento.numero}</p>
                     </div>
-                  ))
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Piso</label>
+                      <p className="text-gray-900">Piso {tenant.departamento.piso}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Edificio</label>
+                      <p className="text-gray-900">{tenant.departamento.edificio?.nombre || '--'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Dirección</label>
+                      <p className="text-gray-900">{tenant.departamento.edificio?.direccion || '--'}</p>
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-gray-500">No tiene departamento asignado</p>
                 )}

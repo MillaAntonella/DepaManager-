@@ -40,7 +40,7 @@ const AdminSidebar = () => {
     { path: '/admin/tenants', icon: Users, label: 'Inquilinos' },
     { path: '/admin/contracts', icon: FileText, label: 'Contratos' },
     { path: '/admin/payments', icon: DollarSign, label: 'Pagos' },
-    { path: '/admin/incidents', icon: Wrench, label: 'Incidencias' },
+    { path: '/admin/incidencias', icon: Wrench, label: 'Incidencias' },
     { path: '/admin/providers', icon: Building, label: 'Proveedores' },
     { path: '/admin/applicants', icon: ClipboardList, label: 'Postulantes' },
     { path: '/admin/vehicles', icon: Car, label: 'Vehículos' },

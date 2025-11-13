@@ -1,4 +1,3 @@
-// backend/src/controllers/admin/dashboard.controller.js
 const { User, Building, Department, Contract, Payment, Incident, Provider } = require('../../models');
 const { Op } = require('sequelize');
 
@@ -38,14 +37,14 @@ const getDashboardData = async (req, res) => {
     }
 
     try {
-      // ✅ CORREGIDO: Primero obtener IDs de edificios del admin
+      // ✅ CORREGIDO: Usar el nombre correcto del campo
       const buildingsIds = await Building.findAll({
         where: { idAdministrador: adminId },
         attributes: ['idEdificio']
       });
       const buildingIdsList = buildingsIds.map(b => b.idEdificio);
       
-      console.log('🏢 IDs de edificios del admin:', buildingIdsList); // ✅ LOG
+      console.log('🏢 IDs de edificios del admin:', buildingIdsList);
       
       if (buildingIdsList.length > 0) {
         totalDepartments = await Department.count({
@@ -73,7 +72,7 @@ const getDashboardData = async (req, res) => {
           }
         });
       }
-      console.log('✅ Departamentos disponibles:', availableDepartments); // ✅ LOG
+      console.log('✅ Departamentos disponibles:', availableDepartments);
     } catch (error) {
       console.error('❌ Error contando departamentos disponibles:', error);
     }
@@ -93,7 +92,7 @@ const getDashboardData = async (req, res) => {
           }
         });
       }
-      console.log('✅ Departamentos ocupados:', occupiedDepartments); // ✅ LOG
+      console.log('✅ Departamentos ocupados:', occupiedDepartments);
     } catch (error) {
       console.error('❌ Error contando departamentos ocupados:', error);
     }
@@ -113,7 +112,7 @@ const getDashboardData = async (req, res) => {
           }
         });
       }
-      console.log('✅ Departamentos en mantenimiento:', maintenanceDepartments); // ✅ LOG
+      console.log('✅ Departamentos en mantenimiento:', maintenanceDepartments);
     } catch (error) {
       console.error('❌ Error contando departamentos en mantenimiento:', error);
     }
@@ -134,6 +133,7 @@ const getDashboardData = async (req, res) => {
       totalProviders = await Provider.count({ 
         where: { idAdministrador: adminId } 
       });
+      console.log('🔧 Total proveedores:', totalProviders);
     } catch (error) {
       console.error('Error contando proveedores:', error);
     }
@@ -144,6 +144,7 @@ const getDashboardData = async (req, res) => {
           estado: { [Op.in]: ['Abierta', 'En Revisión', 'Asignada', 'En Proceso'] } 
         }
       });
+      console.log('🚨 Total incidencias activas:', totalIncidents);
     } catch (error) {
       console.error('Error contando incidencias:', error);
     }
@@ -159,6 +160,7 @@ const getDashboardData = async (req, res) => {
           }
         }
       });
+      console.log('💰 Total pagos del mes:', totalPayments);
     } catch (error) {
       console.error('Error contando pagos:', error);
     }
@@ -176,23 +178,17 @@ const getDashboardData = async (req, res) => {
         }
       });
       monthlyRevenue = revenueResult || 0;
+      console.log('💵 Ingresos mensuales:', monthlyRevenue);
     } catch (error) {
       console.error('Error calculando ingresos:', error);
     }
 
     try {
-      // Calcular ocupación
-      const depts = await Department.findAll({
-        include: [{
-          model: Building,
-          where: { idAdministrador: adminId }
-        }],
-        attributes: ['estado']
-      });
-      
-      const total = depts.length;
-      const occupied = depts.filter(d => d.estado === 'Ocupado').length;
-      occupancyRate = total > 0 ? Math.round((occupied / total) * 100) : 0;
+      // ✅ CORREGIDO: Calcular ocupación de forma más simple
+      if (totalDepartments > 0) {
+        occupancyRate = Math.round((occupiedDepartments / totalDepartments) * 100);
+      }
+      console.log('📊 Tasa de ocupación:', occupancyRate + '%');
     } catch (error) {
       console.error('Error calculando ocupación:', error);
     }
@@ -221,6 +217,7 @@ const getDashboardData = async (req, res) => {
         order: [['fechaPago', 'DESC']],
         limit: 5
       });
+      console.log('✅ Pagos recientes obtenidos:', recentPayments.length);
     } catch (error) {
       console.error('Error obteniendo pagos recientes:', error);
     }
@@ -237,6 +234,7 @@ const getDashboardData = async (req, res) => {
         order: [['fechaReporte', 'DESC']],
         limit: 5
       });
+      console.log('✅ Incidencias recientes obtenidas:', recentIncidents.length);
     } catch (error) {
       console.error('Error obteniendo incidencias recientes:', error);
     }

@@ -34,8 +34,22 @@ const TenantForm = ({ isOpen, onClose, onSuccess, editData = null }) => {
         console.log('📦 Respuesta de departamentos:', response.data);
         
         if (response.data.success) {
-          setDepartments(response.data.data || []);
-          console.log(`✅ ${response.data.data?.length || 0} departamentos cargados`);
+          let deptsList = response.data.data || [];
+          
+          // Si estamos editando y el inquilino tiene un departamento, agregarlo a la lista
+          if (editData && editData.departamento) {
+            const currentDept = editData.departamento;
+            // Verificar si el departamento actual ya está en la lista
+            const existsInList = deptsList.some(d => d.idDepartamento === currentDept.idDepartamento);
+            
+            if (!existsInList) {
+              // Agregar el departamento actual al inicio de la lista
+              deptsList = [currentDept, ...deptsList];
+            }
+          }
+          
+          setDepartments(deptsList);
+          console.log(`✅ ${deptsList.length} departamentos cargados`);
         } else {
           setDepartmentsError('Error al cargar departamentos');
         }
@@ -51,7 +65,7 @@ const TenantForm = ({ isOpen, onClose, onSuccess, editData = null }) => {
     if (isOpen) {
       loadDepartments();
     }
-  }, [isOpen]);
+  }, [isOpen, editData]);
 
   // Si estamos editando, cargar los datos
   useEffect(() => {

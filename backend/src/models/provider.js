@@ -1,4 +1,3 @@
-// backend/src/models/provider.js
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -26,6 +25,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(100),
       allowNull: false
     },
+    telefono: {
+      type: DataTypes.STRING(20),
+      allowNull: true
+    },
     ubicacion: {
       type: DataTypes.TEXT,
       allowNull: true
@@ -35,7 +38,7 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     rating: {
-      type: DataTypes.DECIMAL(3,2),
+      type: DataTypes.DECIMAL(3, 2),
       defaultValue: 0.00
     },
     servicios: {

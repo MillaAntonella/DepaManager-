@@ -84,4 +84,50 @@ export const adminAPI = {
   updateTenant: (id, data) => api.put(`/admin/tenants/${id}`, data),
   deleteTenant: (id) => api.delete(`/admin/tenants/${id}`),
   updateTenantStatus: (id, estado) => api.patch(`/admin/tenants/${id}/status`, { estado }),
+
+  // ==================== INCIDENCIAS ====================
+  /**
+   * Obtener lista de incidencias con filtros opcionales
+   * @param {Object} filters - Filtros (estado, urgencia, categoria)
+   * @returns {Promise} Lista de incidencias y estadísticas
+   */
+  getIncidents: (filters = {}) => {
+    console.log('🚨 Solicitando incidencias con filtros:', filters);
+    const params = new URLSearchParams();
+    Object.keys(filters).forEach(key => {
+      if (filters[key]) params.append(key, filters[key]);
+    });
+    return api.get(`/admin/incidencias?${params.toString()}`);
+  },
+
+  /**
+   * Obtener detalles de una incidencia específica
+   * @param {Number} id - ID de la incidencia
+   * @returns {Promise} Detalles de la incidencia
+   */
+  getIncidentDetails: (id) => {
+    console.log(`🔍 Solicitando detalles de incidencia ${id}`);
+    return api.get(`/admin/incidencias/${id}`);
+  },
+
+  /**
+   * Actualizar incidencia (asignar proveedor, cambiar estado)
+   * @param {Number} id - ID de la incidencia
+   * @param {Object} data - Datos a actualizar (idProveedor, estado, mensajeAsignacion)
+   * @returns {Promise} Incidencia actualizada
+   */
+  updateIncident: (id, data) => {
+    console.log(`✏️ Actualizando incidencia ${id}:`, data);
+    return api.put(`/admin/incidencias/${id}`, data);
+  },
+
+  // ==================== PROVEEDORES ====================
+  /**
+   * Obtener lista de proveedores para asignar a incidencias
+   * @returns {Promise} Lista de proveedores
+   */
+  getProviders: () => {
+    console.log('🔧 Solicitando lista de proveedores...');
+    return api.get('/admin/proveedores');
+  }
 };

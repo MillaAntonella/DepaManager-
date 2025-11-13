@@ -259,7 +259,8 @@ const updateTenant = async (req, res) => {
       dni,
       fechaNacimiento,
       estado,
-      plan
+      plan,
+      idDepartamento
     } = req.body;
 
     // Verificar que el inquilino existe
@@ -292,10 +293,57 @@ const updateTenant = async (req, res) => {
       }
     );
 
-    // Obtener el inquilino actualizado
+    // Si se envió un nuevo departamento, actualizar la asignación
+    if (idDepartamento !== undefined) {
+      // Liberar el departamento anterior (si existe)
+      await Department.update(
+        { idInquilino: null },
+        { where: { idInquilino: tenantId } }
+      );
+
+      // Asignar el nuevo departamento (si no está vacío)
+      if (idDepartamento && idDepartamento !== '') {
+        // Verificar que el departamento pertenece al admin
+        const departamento = await Department.findOne({
+          where: { idDepartamento },
+          include: [{
+            model: Building,
+            as: 'edificio',
+            where: { idAdministrador: adminId }
+          }]
+        });
+
+        if (!departamento) {
+          return res.status(400).json({
+            success: false,
+            message: 'Departamento no válido'
+          });
+        }
+
+        // Asignar el nuevo departamento
+        await Department.update(
+          { idInquilino: tenantId },
+          { where: { idDepartamento } }
+        );
+      }
+    }
+
+    // Obtener el inquilino actualizado con departamento
     const inquilinoActualizado = await User.findByPk(tenantId, {
       attributes: { exclude: ['contrasenia'] }
     });
+
+    // Obtener el departamento actualizado
+    const departamento = await Department.findOne({
+      where: { idInquilino: tenantId },
+      include: [{
+        model: Building,
+        as: 'edificio',
+        attributes: ['idEdificio', 'nombre', 'direccion']
+      }]
+    });
+
+    inquilinoActualizado.dataValues.departamento = departamento;
 
     console.log('✅ Inquilino actualizado:', inquilinoActualizado.nombreCompleto);
 
@@ -334,22 +382,12 @@ const getTenantDetails = async (req, res) => {
       attributes: { exclude: ['contrasenia'] },
       include: [
         {
-          model: Department,
-          as: 'departamentosInquilino',
-          include: [
-            {
-              model: Building,
-              where: { idAdministrador: adminId },
-              attributes: ['idEdificio', 'nombre', 'direccion']
-            }
-          ]
-        },
-        {
           model: Contract,
           as: 'contratos',
           include: [
             {
               model: Department,
+              as: 'departamento',
               attributes: ['idDepartamento', 'numero', 'piso', 'metrosCuadrados']
             }
           ]
@@ -369,6 +407,21 @@ const getTenantDetails = async (req, res) => {
         message: 'Inquilino no encontrado'
       });
     }
+
+    // Obtener el departamento del inquilino (solo uno)
+    const department = await Department.findOne({
+      where: { idInquilino: tenantId },
+      include: [{
+        model: Building,
+        as: 'edificio',
+        where: { idAdministrador: adminId },
+        attributes: ['idEdificio', 'nombre', 'direccion']
+      }],
+      attributes: ['idDepartamento', 'numero', 'piso', 'metrosCuadrados']
+    });
+    
+    // Agregar el departamento al objeto inquilino
+    inquilino.dataValues.departamento = department;
 
     console.log('✅ Detalles del inquilino obtenidos:', inquilino.nombreCompleto);
 

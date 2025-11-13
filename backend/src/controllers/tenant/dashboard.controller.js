@@ -6,12 +6,30 @@ const { Op } = require('sequelize');
  */
 const getDashboard = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.idUsuario || req.user.id;
+    
+    console.log('📊 Dashboard Tenant - Usuario ID:', userId);
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Usuario no identificado'
+      });
+    }
 
     // Obtener información del usuario
     const user = await User.findByPk(userId, {
       attributes: ['nombreCompleto', 'correo', 'telefono']
     });
+    
+    console.log('👤 Usuario:', user ? user.nombreCompleto : 'No encontrado');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
 
     // Obtener departamento del usuario
     const department = await Department.findOne({
@@ -22,6 +40,8 @@ const getDashboard = async (req, res) => {
         attributes: ['nombre', 'direccion']
       }]
     });
+    
+    console.log('🏠 Departamento:', department ? `Depto ${department.numero}` : 'No asignado');
 
     // Obtener próximo pago pendiente
     const nextPayment = await Payment.findOne({
@@ -34,6 +54,8 @@ const getDashboard = async (req, res) => {
       },
       order: [['fechaVencimiento', 'ASC']]
     });
+    
+    console.log('💰 Próximo pago:', nextPayment ? nextPayment.monto : 'Sin pagos');
 
     // Contar pagos del año actual
     const currentYear = new Date().getFullYear();
@@ -57,32 +79,8 @@ const getDashboard = async (req, res) => {
         }
       }
     });
-
-    // Actividad reciente (pagos + incidencias)
-    const recentPayments = await Payment.findAll({
-      where: { idInquilino: userId },
-      order: [['fechaCreacion', 'DESC']],
-      limit: 3
-    });
-
-    const recentIncidents = await Incident.findAll({
-      where: { idInquilino: userId },
-      order: [['fechaReporte', 'DESC']],
-      limit: 2
-    });
-
-    const recentActivity = [
-      ...recentPayments.map(p => ({
-        tipo: `Pago ${p.estado.toLowerCase()}`,
-        fecha: p.fechaCreacion.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }),
-        monto: p.monto
-      })),
-      ...recentIncidents.map(i => ({
-        tipo: `Incidencia ${i.estado.toLowerCase()}`,
-        fecha: i.fechaReporte.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }),
-        descripcion: i.tipoProblema
-      }))
-    ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 4);
+    
+    console.log('🚨 Incidencias activas:', incidentsCount);
 
     // Construir respuesta
     const dashboardData = {
@@ -90,9 +88,9 @@ const getDashboard = async (req, res) => {
         nombreCompleto: user.nombreCompleto
       },
       proximoPago: {
-        monto: nextPayment ? nextPayment.monto : 0,
+        monto: nextPayment ? parseFloat(nextPayment.monto) : 0,
         fechaVencimiento: nextPayment ? 
-          nextPayment.fechaVencimiento.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : 'Sin pagos pendientes'
+          new Date(nextPayment.fechaVencimiento).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }) : 'Sin pagos pendientes'
       },
       departamento: {
         numero: department ? department.numero : 'No asignado',
@@ -102,8 +100,10 @@ const getDashboard = async (req, res) => {
         pagosEsteAnio: paymentCount,
         incidenciasActivas: incidentsCount
       },
-      actividadReciente: recentActivity
+      actividadReciente: []
     };
+
+    console.log('✅ Dashboard generado correctamente');
 
     res.json({
       success: true,
@@ -111,10 +111,11 @@ const getDashboard = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error en dashboard:', error);
+    console.error('❌ Error en dashboard:', error);
     res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: error.message
     });
   }
 };

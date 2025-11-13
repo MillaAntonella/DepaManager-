@@ -136,5 +136,38 @@ module.exports = (sequelize) => {
     }
   };
 
+  // ✅ AGREGAR ESTAS ASOCIACIONES AL FINAL
+  User.associate = function(models) {
+    // Un usuario (inquilino) puede tener muchas incidencias
+    User.hasMany(models.Incident, {
+      foreignKey: 'id_inquilino',
+      as: 'incidencias'
+    });
+    
+    // Un usuario (administrador) puede tener muchos proveedores
+    User.hasMany(models.Provider, {
+      foreignKey: 'id_administrador',
+      as: 'proveedores'
+    });
+    
+    // Un usuario puede ser inquilino de un departamento
+    User.belongsTo(models.Department, {
+      foreignKey: 'id_inquilino',
+      as: 'departamento'
+    });
+    
+    // Un usuario puede tener muchos contratos
+    User.hasMany(models.Contract, {
+      foreignKey: 'id_inquilino',
+      as: 'contratos'
+    });
+    
+    // Un usuario puede tener muchos pagos
+    User.hasMany(models.Payment, {
+      foreignKey: 'id_inquilino',
+      as: 'pagos'
+    });
+  };
+
   return User;
 };

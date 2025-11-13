@@ -78,6 +78,9 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.use('/tenant', require('./routes/tenant.routes'));
+app.use('/admin', require('./routes/admin.routes'));
+
 // Sincronización de base de datos
 const startServer = async () => {
   try {

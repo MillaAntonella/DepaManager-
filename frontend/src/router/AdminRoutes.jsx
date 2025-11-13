@@ -6,7 +6,9 @@ import AdminLayout from '../components/layout/AdminLayout';
 import Dashboard from '../pages/admin/Dashboard';
 import DepartmentsList from '../pages/admin/departments/DepartmentsList';
 import TenantsList from '../pages/admin/tenants/TenantsList';
-import TenantDetails from '../pages/admin/tenants/TenantDetails'; // ✅ CORREGIR IMPORT
+import TenantDetails from '../pages/admin/tenants/TenantDetails';
+import IncidentsList from '../pages/admin/incidents/IncidentsList';
+import IncidentDetails from '../pages/admin/incidents/IncidentDetails';
 
 export default function AdminRoutes() {
   const { user, isAuthenticated } = useAuth();
@@ -22,7 +24,12 @@ export default function AdminRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/departments" element={<DepartmentsList />} />
         <Route path="/tenants" element={<TenantsList />} />
-        <Route path="/tenants/:id" element={<TenantDetails />} /> {/* ✅ AHORA ESTÁ DEFINIDO */}
+        <Route path="/tenants/:id" element={<TenantDetails />} />
+        
+        {/* Incidencias */}
+        <Route path="/incidencias" element={<IncidentsList />} />
+        <Route path="/incidencias/:id" element={<IncidentDetails />} />
+        
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </AdminLayout>

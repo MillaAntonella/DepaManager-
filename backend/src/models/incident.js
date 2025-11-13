@@ -52,13 +52,28 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true,
       field: 'fecha_cierre'
+    },
+    fechaReporte: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      field: 'fecha_reporte',
+      defaultValue: DataTypes.NOW
     }
   }, {
     tableName: 'incidencias',
-    timestamps: true,
-    createdAt: 'fecha_reporte',
-    updatedAt: false
+    timestamps: false
   });
+
+  Incident.associate = function(models) {
+    Incident.belongsTo(models.User, {
+      foreignKey: 'idInquilino',
+      as: 'inquilino'
+    });
+    Incident.belongsTo(models.Provider, {
+      foreignKey: 'idProveedor',
+      as: 'proveedor'
+    });
+  };
 
   return Incident;
 };
