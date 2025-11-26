@@ -130,6 +130,39 @@ export const adminAPI = {
     console.log('🔧 Solicitando lista de proveedores...');
     return api.get('/admin/proveedores');
   },
+
+  getAllPlateDetections: () => {
+    console.log('🚗 Solicitando todas las detecciones de placas...');
+    return api.get('/camera/detections/all');
+  },
+  
+  updateDetection: (id, data) => {
+    console.log(`✏️ Actualizando detección ${id}:`, data);
+    return api.put(`/camera/detections/${id}`, data);
+  },
+
+  previewFromWebcam: (formData) => {
+    console.log('🔍 Analizando imagen desde webcam (preview)...');
+    return api.post('/camera/scan/preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  saveFromWebcam: (data) => {
+    console.log('💾 Guardando detección confirmada:', data);
+    return api.post('/camera/scan/save', data);
+  },
+
+  scanFromWebcam: (formData) => {
+    console.log('📸 Enviando imagen desde webcam para escaneo (guarda automáticamente)...');
+    return api.post('/camera/scan', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
   
   // ✅ RUTAS AGREGADAS PARA PROVEEDORES
   createProvider: (providerData) => {

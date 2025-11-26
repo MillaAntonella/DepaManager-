@@ -14,6 +14,8 @@ import ContractsList from '../pages/admin/contracts/ContractsList';
 
 import ApplicantsList from '../pages/admin/applicants/ApplicantsList';
 import ApplicantsDetails from '../pages/admin/applicants/ApplicantsDetails';
+import VehiclesList from '../pages/admin/vehicles/VehiclesList';
+import PlateScanner from '../pages/admin/scanner/PlateScanner';
 
 export default function AdminRoutes() {
   const { user, isAuthenticated } = useAuth();
@@ -42,6 +44,10 @@ export default function AdminRoutes() {
         
         {/* Proveedores */}
         <Route path="/proveedores" element={<ProvidersList />} />
+        
+        {/* Vehículos */}
+        <Route path="/vehicles" element={<VehiclesList />} />
+        <Route path="/scanner" element={<PlateScanner />} />
         
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>

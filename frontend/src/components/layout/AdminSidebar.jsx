@@ -15,7 +15,8 @@ import {
   Camera,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Scan,
 } from 'lucide-react';
 
 const AdminSidebar = () => {
@@ -44,7 +45,7 @@ const AdminSidebar = () => {
     { path: '/admin/proveedores', icon: Building, label: 'Proveedores' },
     { path: '/admin/applicants', icon: ClipboardList, label: 'Postulantes' },
     { path: '/admin/vehicles', icon: Car, label: 'Vehículos' },
-    { path: '/admin/cameras', icon: Camera, label: 'Cámaras' },
+    { path: '/admin/scanner', icon: Scan, label: 'Escáner de Placas' },
   ];
 
   return (
