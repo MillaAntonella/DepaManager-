@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { tenantAPI } from '../../../services/api/tenant';
+import PaymentGatewayModal from '../../../components/tenant/PaymentGatewayModal';
 
 /**
  * Vista de gestión de pagos del inquilino
@@ -11,22 +12,17 @@ export default function PaymentsList() {
     estadisticas: {}
   });
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(null);
   const [filters, setFilters] = useState({
     estado: ''
   });
-
-  /**
-   * Cargar pagos cuando cambian los filtros
-   */
-  useEffect(() => {
-    loadPayments();
-  }, [filters]);
+  const [showGateway, setShowGateway] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [pagos, setPagos] = useState([]);
 
   /**
    * Cargar pagos desde la API
    */
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔄 Cargando pagos...');
@@ -35,6 +31,7 @@ export default function PaymentsList() {
       
       if (response.success) {
         setPaymentsData(response.data);
+        setPagos(response.data.pagos);
         console.log('✅ Pagos cargados exitosamente');
       }
     } catch (error) {
@@ -43,26 +40,50 @@ export default function PaymentsList() {
     } finally {
       setLoading(false);
     }
+  }, [filters]);
+
+  /**
+   * Cargar pagos cuando cambian los filtros
+   */
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
+  /**
+   * Manejar clic en pagar
+   */
+  const handlePayClick = (pago) => {
+    setSelectedPayment(pago);
+    setShowGateway(true);
   };
 
   /**
-   * Manejar subida de comprobante
+   * Manejar pago completado
    */
-  const handleUploadReceipt = async (idPago) => {
-    try {
-      setUploading(idPago);
-      
-      // En una implementación real, aquí subirías el archivo
-      const urlComprobante = `https://ejemplo.com/comprobantes/${idPago}.pdf`;
-      
-      await tenantAPI.uploadPaymentReceipt(idPago, urlComprobante);
-      alert('Comprobante subido correctamente. Esperando verificación del administrador.');
-      loadPayments(); // Recargar lista
-    } catch (error) {
-      console.error('Error subiendo comprobante:', error);
-      alert('Error al subir comprobante: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setUploading(null);
+  const handlePaymentComplete = (metodoPago, comprobanteUrl = null) => {
+    // Actualizar el pago a Pagado o Pendiente de Verificación
+    setPagos(prevPagos => 
+      prevPagos.map(p => 
+        p.id_pago === selectedPayment.id_pago 
+          ? {
+              ...p,
+              estado: metodoPago === 'PayPal' ? 'Pagado' : 'Pendiente de Verificación',
+              fecha_pago: new Date().toISOString().split('T')[0],
+              metodo_pago: metodoPago,
+              url_comprobante: comprobanteUrl
+            }
+          : p
+      )
+    );
+
+    setShowGateway(false);
+    setSelectedPayment(null);
+
+    // Mostrar mensaje de éxito
+    if (metodoPago === 'PayPal') {
+      alert('Pago procesado exitosamente con PayPal');
+    } else {
+      alert('Comprobante enviado exitosamente. El administrador verificará tu pago.');
     }
   };
 
@@ -77,33 +98,35 @@ export default function PaymentsList() {
   };
 
   /**
-   * Formatear fecha en español
+   * Obtener badge de estado con estilos
    */
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  const getEstadoBadge = (estado) => {
+    const styles = {
+      'Pendiente': 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+      'Pagado': 'bg-green-100 text-green-800 border border-green-300',
+      'Vencido': 'bg-red-100 text-red-800 border border-red-300',
+      'Pendiente de Verificación': 'bg-blue-100 text-blue-800 border border-blue-300'
+    };
+    return styles[estado] || 'bg-gray-100 text-gray-800 border border-gray-300';
   };
 
   /**
-   * Obtener clase CSS para el estado del pago
+   * Obtener icono del método de pago
    */
-  const getStatusBadgeClass = (estado) => {
-    switch (estado) {
-      case 'Pagado':
-        return 'bg-green-100 text-green-800';
-      case 'Pendiente':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Vencido':
-        return 'bg-red-100 text-red-800';
-      case 'Pendiente de Verificación':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const getMetodoPagoIcon = (metodo) => {
+    const icons = {
+      'Yape': '💜',
+      'Plin': '💙',
+      'Transferencia': '🏦',
+      'PayPal': '💳',
+      'Efectivo': '💵'
+    };
+    return icons[metodo] || '💰';
   };
+
+  const pagosPendientes = pagos.filter(p => p.estado === 'Pendiente');
+  const pagosVerificacion = pagos.filter(p => p.estado === 'Pendiente de Verificación');
+  const totalPendiente = pagosPendientes.reduce((sum, p) => sum + p.monto, 0);
 
   if (loading) {
     return (
@@ -176,80 +199,204 @@ export default function PaymentsList() {
           </div>
         </div>
 
-        {/* Lista de Pagos */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6">
-            {paymentsData.pagos.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-slate-500">No hay pagos registrados</p>
-                <p className="text-sm text-slate-400 mt-1">Todos tus pagos están al día</p>
+        {/* Resumen de Pagos Pendientes */}
+        {pagosPendientes.length > 0 && (
+          <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-500 p-6 rounded-lg mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  Tienes {pagosPendientes.length} pago{pagosPendientes.length > 1 ? 's' : ''} pendiente{pagosPendientes.length > 1 ? 's' : ''}
+                </h3>
+                <p className="text-2xl font-bold text-orange-600">
+                  Total: S/ {totalPendiente.toFixed(2)}
+                </p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">
-                  {filters.estado ? `Pagos ${filters.estado}` : 'Todos mis Pagos'}
-                </h2>
-                
-                {paymentsData.pagos.map((pago) => (
-                  <div key={pago.idPago} className="border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-                      {/* Información del pago */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-slate-900">
-                            {pago.concepto} {pago.descripcionServicio && `- ${pago.descripcionServicio}`}
+              <div className="text-6xl">💳</div>
+            </div>
+          </div>
+        )}
+
+        {pagosVerificacion.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 p-6 rounded-lg mb-6 shadow-sm">
+            <div className="flex items-center space-x-3">
+              <span className="text-3xl">⏳</span>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {pagosVerificacion.length} pago{pagosVerificacion.length > 1 ? 's' : ''} en verificación
+                </h3>
+                <p className="text-sm text-gray-600">
+                  El administrador está revisando tu{pagosVerificacion.length > 1 ? 's' : ''} comprobante{pagosVerificacion.length > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Resumen de Estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-4xl">💰</span>
+              <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-1 rounded">
+                Pendientes
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{pagosPendientes.length}</p>
+            <p className="text-sm text-gray-600">Pagos por realizar</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-4xl">⏳</span>
+              <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded">
+                En revisión
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{pagosVerificacion.length}</p>
+            <p className="text-sm text-gray-600">En verificación</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-4xl">✅</span>
+              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-1 rounded">
+                Completados
+              </span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {pagos.filter(p => p.estado === 'Pagado').length}
+            </p>
+            <p className="text-sm text-gray-600">Pagos realizados</p>
+          </div>
+        </div>
+
+        {/* Lista de Pagos */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Historial de Pagos</h2>
+          
+          {pagos.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+              <div className="text-6xl mb-4">📋</div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No tienes pagos registrados
+              </h3>
+              <p className="text-gray-600">
+                Los pagos asignados por el administrador aparecerán aquí
+              </p>
+            </div>
+          ) : (
+            pagos.map((pago) => (
+              <div
+                key={pago.id_pago}
+                className={`bg-white rounded-lg shadow-md border transition-all hover:shadow-lg ${
+                  pago.estado === 'Pendiente' 
+                    ? 'border-orange-200 ring-2 ring-orange-100' 
+                    : 'border-gray-200'
+                }`}
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <span className="text-3xl">
+                          {pago.concepto === 'Alquiler' ? '🏠' : '⚡'}
+                        </span>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {pago.concepto}
                           </h3>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(pago.estado)}`}>
-                            {pago.estado}
-                          </span>
+                          <p className="text-sm text-gray-600">{pago.descripcion_servicio}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Monto</p>
+                          <p className="text-xl font-bold text-gray-900">S/ {pago.monto.toFixed(2)}</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600">
-                          <p><strong>Vence:</strong> {formatDate(pago.fechaVencimiento)}</p>
-                          <p><strong>Monto:</strong> {formatMoney(pago.monto)}</p>
-                          {pago.fechaPago && (
-                            <p><strong>Pagado:</strong> {formatDate(pago.fechaPago)}</p>
-                          )}
-                          {pago.metodoPago && (
-                            <p><strong>Método:</strong> {pago.metodoPago}</p>
-                          )}
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Vencimiento</p>
+                          <p className="text-sm font-medium text-gray-700">
+                            {new Date(pago.fecha_vencimiento).toLocaleDateString('es-PE', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </p>
                         </div>
 
-                        {pago.mensajeAdministrador && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                            <p className="text-sm text-blue-700">
-                              <strong>Administrador:</strong> {pago.mensajeAdministrador}
+                        {pago.fecha_pago && (
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">Pagado el</p>
+                            <p className="text-sm font-medium text-gray-700">
+                              {new Date(pago.fecha_pago).toLocaleDateString('es-PE', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
                             </p>
                           </div>
                         )}
-                      </div>
 
-                      {/* Acciones */}
-                      <div className="flex flex-col gap-2">
-                        {pago.estado === 'Pendiente' && !pago.comprobanteSubido ? (
-                          <button
-                            onClick={() => navigate(`/tenant/pagos/subir/${pago.idPago}`)}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-                            >
-                            Subir Comprobante
-                          </button>
-                        ) : pago.comprobanteSubido ? (
-                          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm text-center">
-                            ✅ Comprobante Subido
+                        {pago.metodo_pago && (
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <p className="text-xs text-gray-500 mb-1">Método</p>
+                            <p className="text-sm font-medium text-gray-700">
+                              {getMetodoPagoIcon(pago.metodo_pago)} {pago.metodo_pago}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-xs text-gray-500 mb-1">Estado</p>
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getEstadoBadge(pago.estado)}`}>
+                            {pago.estado}
                           </span>
-                        ) : null}
-                        
-                        <button className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition-colors">
-                          Ver Detalles
-                        </button>
+                        </div>
                       </div>
                     </div>
+
+                    <div className="ml-6 flex flex-col space-y-2">
+                      {pago.estado === 'Pendiente' && (
+                        <button
+                          onClick={() => handlePayClick(pago)}
+                          className="bg-gradient-to-r from-teal-500 to-teal-600 text-white px-6 py-3 rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all shadow-md hover:shadow-lg font-medium whitespace-nowrap flex items-center space-x-2"
+                        >
+                          <span>💳</span>
+                          <span>Pagar Ahora</span>
+                        </button>
+                      )}
+                      
+                      {pago.estado === 'Pagado' && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-3 rounded-lg font-medium whitespace-nowrap flex items-center space-x-2">
+                          <span>✅</span>
+                          <span>Pagado</span>
+                        </div>
+                      )}
+                      
+                      {pago.estado === 'Pendiente de Verificación' && (
+                        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-6 py-3 rounded-lg font-medium whitespace-nowrap flex items-center space-x-2">
+                          <span>⏳</span>
+                          <span>En Revisión</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </div>
+            ))
+          )}
         </div>
+
+        {/* Modal de Pasarela de Pagos */}
+        {showGateway && selectedPayment && (
+          <PaymentGatewayModal
+            pago={selectedPayment}
+            onClose={() => setShowGateway(false)}
+            onPaymentComplete={handlePaymentComplete}
+          />
+        )}
       </div>
     </div>
   );

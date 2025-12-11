@@ -7,7 +7,6 @@ import {
   User,
   Settings,
   Bell,
-  FileText,
   ChevronDown,
   LogOut
 } from 'lucide-react';
@@ -94,160 +93,150 @@ const AdminHeader = () => {
         </div>
 
         {/* SECCIÓN DERECHA - Perfil de Usuario */}
-        <div className="relative" ref={dropdownRef}>
+        <div className="flex items-center space-x-4">
+          
+          {/* Botón de Notificaciones */}
           <button
-            onClick={toggleDropdown}
-            className="
-              flex items-center space-x-3 px-3 py-2
-              hover:bg-gray-50 rounded-lg
-              transition-colors duration-200
-              focus:outline-none focus:ring-2 focus:ring-emerald-500
-            "
+            onClick={() => navigate('/admin/notificaciones')}
+            className="relative p-2 text-gray-600 hover:text-emerald-600 hover:bg-gray-50 rounded-lg transition-colors"
           >
-            {/* Avatar con Iniciales */}
-            {/* TODO: Cuando se implemente la página de configuración de usuario, 
-                reemplazar las iniciales con la foto de perfil real desde user.avatar */}
-            <div className="
-              w-10 h-10 rounded-full
-              bg-gradient-to-br from-emerald-500 to-emerald-600
-              flex items-center justify-center
-              text-white font-semibold text-sm
-              shadow-md
-            ">
-              {getInitials(user?.nombre)}
-            </div>
-
-            {/* Información del Usuario */}
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-gray-800">
-                {user?.nombre || 'Usuario'}
-              </p>
-              <p className="text-xs text-gray-500">
-                Administrador
-              </p>
-            </div>
-
-            {/* Icono de Dropdown */}
-            <ChevronDown 
-              className={`
-                w-4 h-4 text-gray-500
-                transition-transform duration-200
-                ${isDropdownOpen ? 'transform rotate-180' : ''}
-              `}
-            />
+            <Bell className="w-6 h-6" />
+            {/* Badge de notificaciones no leídas */}
+            <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+              3
+            </span>
           </button>
 
-          {/* DROPDOWN DEL PERFIL */}
-          {isDropdownOpen && (
-            <div className="
-              absolute right-0 mt-2 w-64
-              bg-white rounded-lg shadow-xl
-              border border-gray-100
-              py-2
-              animate-fadeIn
-            ">
-              {/* Información del Usuario en Dropdown */}
-              <div className="px-4 py-3 border-b border-gray-100">
+          {/* Dropdown del perfil */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={toggleDropdown}
+              className="
+                flex items-center space-x-3 px-3 py-2
+                hover:bg-gray-50 rounded-lg
+                transition-colors duration-200
+                focus:outline-none focus:ring-2 focus:ring-emerald-500
+              "
+            >
+              {/* Avatar con Iniciales */}
+              <div className="
+                w-10 h-10 rounded-full
+                bg-gradient-to-br from-emerald-500 to-emerald-600
+                flex items-center justify-center
+                text-white font-semibold text-sm
+                shadow-md
+              ">
+                {getInitials(user?.nombre)}
+              </div>
+
+              {/* Información del Usuario */}
+              <div className="hidden md:block text-left">
                 <p className="text-sm font-semibold text-gray-800">
                   {user?.nombre || 'Usuario'}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {user?.email || 'Administrador'}
+                <p className="text-xs text-gray-500">
+                  Administrador
                 </p>
               </div>
 
-              {/* Opciones del Menú */}
-              <div className="py-2">
-                {/* Mi Perfil */}
-                {/* TODO: Conectar con la página de perfil cuando esté lista */}
-                <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // navigate('/admin/profile');
-                    console.log('Navegar a Mi Perfil');
-                  }}
-                  className="
-                    w-full flex items-center space-x-3 px-4 py-2.5
-                    hover:bg-gray-50 transition-colors duration-150
-                    text-gray-700 hover:text-emerald-600
-                  "
-                >
-                  <User className="w-5 h-5" />
-                  <span className="text-sm font-medium">Mi Perfil</span>
-                </button>
+              {/* Icono de Dropdown */}
+              <ChevronDown 
+                className={`
+                  w-4 h-4 text-gray-500
+                  transition-transform duration-200
+                  ${isDropdownOpen ? 'transform rotate-180' : ''}
+                `}
+              />
+            </button>
 
-                {/* Configuración */}
-                {/* TODO: Conectar con la página de configuración cuando esté lista */}
-                <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // navigate('/admin/settings');
-                    console.log('Navegar a Configuración');
-                  }}
-                  className="
-                    w-full flex items-center space-x-3 px-4 py-2.5
-                    hover:bg-gray-50 transition-colors duration-150
-                    text-gray-700 hover:text-emerald-600
-                  "
-                >
-                  <Settings className="w-5 h-5" />
-                  <span className="text-sm font-medium">Configuración</span>
-                </button>
+            {/* DROPDOWN DEL PERFIL */}
+            {isDropdownOpen && (
+              <div className="
+                absolute right-0 mt-2 w-64
+                bg-white rounded-lg shadow-xl
+                border border-gray-100
+                py-2
+                animate-fadeIn
+              ">
+                {/* Información del Usuario en Dropdown */}
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-800">
+                    {user?.nombre || 'Usuario'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {user?.email || 'Administrador'}
+                  </p>
+                </div>
 
-                {/* Notificaciones */}
-                {/* TODO: Conectar con la página de notificaciones cuando esté lista */}
-                <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // navigate('/admin/notifications');
-                    console.log('Navegar a Notificaciones');
-                  }}
-                  className="
-                    w-full flex items-center space-x-3 px-4 py-2.5
-                    hover:bg-gray-50 transition-colors duration-150
-                    text-gray-700 hover:text-emerald-600
-                  "
-                >
-                  <Bell className="w-5 h-5" />
-                  <span className="text-sm font-medium">Notificaciones</span>
-                </button>
+                {/* Opciones del Menú */}
+                <div className="py-2">
+                  {/* Mi Perfil */}
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      navigate('/admin/perfil');
+                    }}
+                    className="
+                      w-full flex items-center space-x-3 px-4 py-2.5
+                      hover:bg-gray-50 transition-colors duration-150
+                      text-gray-700 hover:text-emerald-600
+                    "
+                  >
+                    <User className="w-5 h-5" />
+                    <span className="text-sm font-medium">Mi Perfil</span>
+                  </button>
 
-                {/* Reportes */}
-                {/* TODO: Conectar con la página de reportes cuando esté lista */}
+                  {/* Configuración */}
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      navigate('/admin/configuracion');
+                    }}
+                    className="
+                      w-full flex items-center space-x-3 px-4 py-2.5
+                      hover:bg-gray-50 transition-colors duration-150
+                      text-gray-700 hover:text-emerald-600
+                    "
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span className="text-sm font-medium">Configuración</span>
+                  </button>
+
+                  {/* Notificaciones */}
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      navigate('/admin/notificaciones');
+                    }}
+                    className="
+                      w-full flex items-center space-x-3 px-4 py-2.5
+                      hover:bg-gray-50 transition-colors duration-150
+                      text-gray-700 hover:text-emerald-600
+                    "
+                  >
+                    <Bell className="w-5 h-5" />
+                    <span className="text-sm font-medium">Notificaciones</span>
+                  </button>
+                </div>
+
+                {/* Separador */}
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {/* Cerrar Sesión */}
                 <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // navigate('/admin/reports');
-                    console.log('Navegar a Reportes');
-                  }}
+                  onClick={handleLogout}
                   className="
                     w-full flex items-center space-x-3 px-4 py-2.5
-                    hover:bg-gray-50 transition-colors duration-150
-                    text-gray-700 hover:text-emerald-600
+                    hover:bg-red-50 transition-colors duration-150
+                    text-red-600 hover:text-red-700
                   "
                 >
-                  <FileText className="w-5 h-5" />
-                  <span className="text-sm font-medium">Reportes</span>
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-semibold">Cerrar Sesión</span>
                 </button>
               </div>
-
-              {/* Separador */}
-              <div className="border-t border-gray-100 my-2"></div>
-
-              {/* Cerrar Sesión */}
-              <button
-                onClick={handleLogout}
-                className="
-                  w-full flex items-center space-x-3 px-4 py-2.5
-                  hover:bg-red-50 transition-colors duration-150
-                  text-red-600 hover:text-red-700
-                "
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="text-sm font-semibold">Cerrar Sesión</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
