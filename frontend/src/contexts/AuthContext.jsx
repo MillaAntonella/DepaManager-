@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       
       // ✅ Crear objeto de credenciales
       const credentials = { correo, contrasenia };
-      console.log('� Objeto credentials creado:', JSON.stringify(credentials, null, 2));
+      console.log('📦 Objeto credentials creado:', JSON.stringify(credentials, null, 2));
       
       // ✅ IMPORTANTE: Enviar datos directamente, NO dentro de objeto "email"
       const response = await authAPI.login(credentials);
@@ -148,6 +148,7 @@ export const AuthProvider = ({ children }) => {
       };
     }
   };
+
   // Función de login con Google con contexto
   const loginWithGoogle = (context = 'tenant') => {
     const backendUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
@@ -226,6 +227,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ NUEVA FUNCIÓN: ACTUALIZAR DATOS DEL USUARIO
+  const updateUser = (updatedData) => {
+    try {
+      console.log('🔄 Actualizando datos del usuario...', updatedData);
+      
+      // Combinar datos actuales con nuevos datos
+      const newUserData = { ...user, ...updatedData };
+      
+      // Actualizar estado
+      setUser(newUserData);
+      
+      // Actualizar localStorage
+      localStorage.setItem('depamanager_user', JSON.stringify(newUserData));
+      
+      console.log('✅ Usuario actualizado exitosamente:', newUserData);
+      
+      return { success: true, user: newUserData };
+    } catch (error) {
+      console.error('❌ Error al actualizar usuario:', error);
+      return { success: false, error: 'Error al actualizar los datos del usuario' };
+    }
+  };
+
   // ✅ VALOR DEL CONTEXTO
   const value = {
     user,
@@ -235,7 +259,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     registerAdmin,
     checkAuth,
-    loginWithGoogle 
+    loginWithGoogle,
+    updateUser  // ✅ AGREGADA: Nueva función para actualizar usuario
   };
 
   return (

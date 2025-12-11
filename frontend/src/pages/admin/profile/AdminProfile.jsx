@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, 
   Mail, 
@@ -15,25 +15,170 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 
 export default function AdminProfile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Estado para información personal - usando nombres de la BD
-  const [profileData, setProfileData] = useState({
-    nombre_completo: user?.nombre_completo || 'Antonella García',
-    correo: user?.correo || 'admin@depamanager.com',
-    telefono: user?.telefono || '+51 987 654 321',
-    dni: user?.dni || '12345678',
-    fecha_nacimiento: user?.fecha_nacimiento || '1990-05-15',
-    foto_perfil: user?.foto_perfil || null,
-    rol: user?.rol || 'Administrador',
-    estado: user?.estado || 'Activo',
-    plan: user?.plan || 'Gratuito'
+  // Estados para estadísticas
+  const [stats, setStats] = useState({
+    totalDepartamentos: 12,  // ✅ Valor fijo temporal
+    totalInquilinos: 2        // ✅ Valor fijo temporal
   });
+
+  // Estado para información personal - usando datos reales del usuario
+  const [profileData, setProfileData] = useState({
+    nombre_completo: '',
+    correo: '',
+    telefono: '',
+    dni: '',
+    fecha_nacimiento: '',
+    foto_perfil: null,
+    rol: '',
+    estado: '',
+    plan: ''
+  });
+
+  // ✅ Cargar datos del usuario y estadísticas cuando el componente se monte
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        console.log('👤 Usuario del contexto:', user);
+
+        // Cargar datos básicos del usuario desde el contexto
+        setProfileData({
+          nombre_completo: user.nombre || user.nombre_completo || '',
+          correo: user.correo || user.email || '',
+          telefono: user.telefono || '',
+          dni: user.dni || '',
+          fecha_nacimiento: user.fecha_nacimiento || '',
+          foto_perfil: user.foto_perfil || null,
+          rol: user.rol || 'Administrador',
+          estado: user.estado || 'Activo',
+          plan: user.plan || 'Gratuito'
+        });
+
+        // ✅ COMENTADO: Cargar estadísticas desde el backend (usar valores fijos por ahora)
+        /*
+        const token = localStorage.getItem('depamanager_token');
+        
+        console.log('🔍 Cargando estadísticas...');
+        console.log('   Token:', token ? 'SÍ' : 'NO');
+
+        try {
+          // Obtener total de departamentos
+          console.log('📊 Llamando a /api/departamentos...');
+          const deptosResponse = await fetch('http://localhost:3000/api/departamentos', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('📊 Respuesta departamentos - Status:', deptosResponse.status);
+          
+          if (deptosResponse.ok) {
+            const deptosData = await deptosResponse.json();
+            console.log('📊 Datos departamentos recibidos:', deptosData);
+            console.log('   Tipo:', typeof deptosData);
+            console.log('   Es Array:', Array.isArray(deptosData));
+            console.log('   Tiene data:', deptosData.data ? 'SÍ' : 'NO');
+            console.log('   Tiene departamentos:', deptosData.departamentos ? 'SÍ' : 'NO');
+            
+            // Intentar diferentes formatos de respuesta
+            let totalDeptos = 0;
+            if (Array.isArray(deptosData)) {
+              totalDeptos = deptosData.length;
+            } else if (deptosData.data && Array.isArray(deptosData.data)) {
+              totalDeptos = deptosData.data.length;
+            } else if (deptosData.departamentos && Array.isArray(deptosData.departamentos)) {
+              totalDeptos = deptosData.departamentos.length;
+            } else if (typeof deptosData.total === 'number') {
+              totalDeptos = deptosData.total;
+            } else if (typeof deptosData.count === 'number') {
+              totalDeptos = deptosData.count;
+            }
+            
+            console.log('✅ Total departamentos calculado:', totalDeptos);
+            
+            // Actualizar estado con departamentos
+            setStats(prev => ({ ...prev, totalDepartamentos: totalDeptos }));
+          } else {
+            console.error('❌ Error al obtener departamentos:', deptosResponse.status);
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar departamentos:', error);
+        }
+
+        try {
+          // Obtener total de inquilinos
+          console.log('👥 Llamando a /api/usuarios?rol=Inquilino...');
+          const inquilinosResponse = await fetch('http://localhost:3000/api/usuarios?rol=Inquilino', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('👥 Respuesta inquilinos - Status:', inquilinosResponse.status);
+          
+          if (inquilinosResponse.ok) {
+            const inquilinosData = await inquilinosResponse.json();
+            console.log('👥 Datos inquilinos recibidos:', inquilinosData);
+            console.log('   Tipo:', typeof inquilinosData);
+            console.log('   Es Array:', Array.isArray(inquilinosData));
+            console.log('   Tiene data:', inquilinosData.data ? 'SÍ' : 'NO');
+            console.log('   Tiene usuarios:', inquilinosData.usuarios ? 'SÍ' : 'NO');
+            
+            // Intentar diferentes formatos de respuesta
+            let totalInquilinos = 0;
+            if (Array.isArray(inquilinosData)) {
+              totalInquilinos = inquilinosData.length;
+            } else if (inquilinosData.data && Array.isArray(inquilinosData.data)) {
+              totalInquilinos = inquilinosData.data.length;
+            } else if (inquilinosData.usuarios && Array.isArray(inquilinosData.usuarios)) {
+              totalInquilinos = inquilinosData.usuarios.length;
+            } else if (typeof inquilinosData.total === 'number') {
+              totalInquilinos = inquilinosData.total;
+            } else if (typeof inquilinosData.count === 'number') {
+              totalInquilinos = inquilinosData.count;
+            }
+            
+            console.log('✅ Total inquilinos calculado:', totalInquilinos);
+            
+            // Actualizar estado con inquilinos
+            setStats(prev => ({ ...prev, totalInquilinos: totalInquilinos }));
+          } else {
+            console.error('❌ Error al obtener inquilinos:', inquilinosResponse.status);
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar inquilinos:', error);
+        }
+
+        console.log('✅ Estadísticas finales:', {
+          totalDepartamentos: stats.totalDepartamentos,
+          totalInquilinos: stats.totalInquilinos
+        });
+        */
+
+      } catch (error) {
+        console.error('❌ Error general al cargar datos:', error);
+      } finally {
+        setIsLoading(false);
+        console.log('✅ Carga completada - isLoading = false');
+      }
+    };
+
+    loadUserData();
+  }, [user]);
 
   // Estado para cambio de contraseña
   const [passwordData, setPasswordData] = useState({
@@ -77,21 +222,45 @@ export default function AdminProfile() {
 
   const handleSaveProfile = async () => {
     try {
-      // TODO: Implementar guardado en backend
-      console.log('Guardando perfil:', profileData);
+      const token = localStorage.getItem('depamanager_token');
       
-      // Simulación de llamada API
-      // const response = await fetch(`/api/usuarios/${user.id_usuario}`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(profileData)
-      // });
-      
-      setIsEditing(false);
-      alert('Perfil actualizado exitosamente');
+      const response = await fetch(`http://localhost:3000/api/usuarios/${user.id || user.id_usuario}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nombre_completo: profileData.nombre_completo,
+          correo: profileData.correo,
+          telefono: profileData.telefono,
+          dni: profileData.dni,
+          fecha_nacimiento: profileData.fecha_nacimiento
+        })
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        
+        // Actualizar el contexto con los nuevos datos
+        updateUser({
+          nombre: profileData.nombre_completo,
+          nombre_completo: profileData.nombre_completo,
+          correo: profileData.correo,
+          telefono: profileData.telefono,
+          dni: profileData.dni,
+          fecha_nacimiento: profileData.fecha_nacimiento
+        });
+
+        setIsEditing(false);
+        alert('✅ Perfil actualizado exitosamente');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al actualizar el perfil');
+      }
     } catch (error) {
-      console.error('Error al guardar:', error);
-      alert('Error al actualizar el perfil');
+      console.error('❌ Error al guardar:', error);
+      alert('❌ Error al actualizar el perfil: ' + error.message);
     }
   };
 
@@ -99,28 +268,44 @@ export default function AdminProfile() {
     e.preventDefault();
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      alert('❌ Las contraseñas no coinciden');
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      alert('La contraseña debe tener al menos 8 caracteres');
+      alert('❌ La contraseña debe tener al menos 8 caracteres');
       return;
     }
 
     try {
-      // TODO: Implementar cambio de contraseña en backend
-      console.log('Cambiando contraseña');
+      const token = localStorage.getItem('depamanager_token');
       
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+      const response = await fetch(`http://localhost:3000/api/usuarios/${user.id || user.id_usuario}/cambiar-contrasena`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          contrasenaActual: passwordData.currentPassword,
+          contrasenaNueva: passwordData.newPassword
+        })
       });
-      alert('Contraseña actualizada exitosamente');
+
+      if (response.ok) {
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        alert('✅ Contraseña actualizada exitosamente');
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al cambiar la contraseña');
+      }
     } catch (error) {
-      console.error('Error al cambiar contraseña:', error);
-      alert('Error al cambiar la contraseña');
+      console.error('❌ Error al cambiar contraseña:', error);
+      alert('❌ Error al cambiar la contraseña: ' + error.message);
     }
   };
 
@@ -133,6 +318,7 @@ export default function AdminProfile() {
           ...prev,
           foto_perfil: reader.result
         }));
+        // TODO: Subir imagen al servidor
       };
       reader.readAsDataURL(file);
     }
@@ -155,6 +341,20 @@ export default function AdminProfile() {
     };
     return styles[plan] || styles['Gratuito'];
   };
+
+  // Mostrar loading mientras se cargan los datos
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Cargando perfil...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -199,8 +399,8 @@ export default function AdminProfile() {
                 </label>
               </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mt-4">
-                {profileData.nombre_completo}
+              <h3 className="text-xl font-bold text-gray-900 mt-4 text-center">
+                {profileData.nombre_completo || 'Administrador'}
               </h3>
               <p className="text-sm text-gray-600">{profileData.rol}</p>
               
@@ -218,8 +418,8 @@ export default function AdminProfile() {
             {/* Información Rápida */}
             <div className="space-y-3 pt-4 border-t border-gray-200">
               <div className="flex items-center text-sm text-gray-600">
-                <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                <span className="truncate">{profileData.correo}</span>
+                <Mail className="w-4 h-4 mr-2 text-gray-400 flex-shrink-0" />
+                <span className="truncate">{profileData.correo || 'No especificado'}</span>
               </div>
               {profileData.telefono && (
                 <div className="flex items-center text-sm text-gray-600">
@@ -238,11 +438,15 @@ export default function AdminProfile() {
             {/* Estadísticas */}
             <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-200">
               <div className="text-center">
-                <p className="text-2xl font-bold text-emerald-600">15</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {stats.totalDepartamentos}
+                </p>
                 <p className="text-xs text-gray-600">Departamentos</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">42</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {stats.totalInquilinos}
+                </p>
                 <p className="text-xs text-gray-600">Inquilinos</p>
               </div>
             </div>
@@ -310,17 +514,19 @@ export default function AdminProfile() {
                         onClick={() => {
                           setIsEditing(false);
                           // Revertir cambios
-                          setProfileData({
-                            nombre_completo: user?.nombre_completo || 'Antonella García',
-                            correo: user?.correo || 'admin@depamanager.com',
-                            telefono: user?.telefono || '+51 987 654 321',
-                            dni: user?.dni || '12345678',
-                            fecha_nacimiento: user?.fecha_nacimiento || '1990-05-15',
-                            foto_perfil: user?.foto_perfil || null,
-                            rol: user?.rol || 'Administrador',
-                            estado: user?.estado || 'Activo',
-                            plan: user?.plan || 'Gratuito'
-                          });
+                          if (user) {
+                            setProfileData({
+                              nombre_completo: user.nombre || user.nombre_completo || '',
+                              correo: user.correo || user.email || '',
+                              telefono: user.telefono || '',
+                              dni: user.dni || '',
+                              fecha_nacimiento: user.fecha_nacimiento || '',
+                              foto_perfil: user.foto_perfil || null,
+                              rol: user.rol || 'Administrador',
+                              estado: user.estado || 'Activo',
+                              plan: user.plan || 'Gratuito'
+                            });
+                          }
                         }}
                         className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center"
                       >
